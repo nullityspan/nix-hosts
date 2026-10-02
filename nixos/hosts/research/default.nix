@@ -5,8 +5,9 @@
   ...
 }:
 let
-  # Work identity lives in private.nix.sops; no signing, no shared login keys.
-  user = removeAttrs (import ../../../users/zen.nix) [ "signingKey" ] // {
+  zen = import ../../../users/zen.nix;
+  # Work identity lives in private.nix.sops; no signing.
+  user = removeAttrs zen [ "signingKey" ] // {
     identity = "";
     email = "";
     authorizedKeys = [ ];
@@ -74,8 +75,11 @@ in
 
   users.users = {
     zen = {
-      uid = 1000; # previous primary uid; keeps /home ownership
-      openssh.authorizedKeys.keys = lib.mkForce [ ];
+      uid = 1000;
+      # Nitrokeys only; drops the research host's own key.
+      openssh.authorizedKeys.keys = lib.mkForce (
+        builtins.filter (lib.hasPrefix "sk-") zen.authorizedKeys
+      );
     };
     root.openssh.authorizedKeys.keys = lib.mkForce [ ];
   };
