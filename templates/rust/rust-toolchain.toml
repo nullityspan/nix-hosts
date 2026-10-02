@@ -1,0 +1,10 @@
+# Pins the Rust version for the nix devShell (via rust-overlay) and rustup.
+# channel = "stable" | "1.85.0" | "nightly"
+[toolchain]
+channel = "stable"
+components = [
+  "rustfmt",
+  "clippy",
+  "rust-analyzer",
+  "rust-src",
+]

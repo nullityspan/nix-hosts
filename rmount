@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# rmount — temporary sshfs mount inside the current project tree.
+#
+#   rmount devbox:/srv/code/myproj        # mount into ./remote
+#   rmount devbox:/srv/code/myproj src    # mount into ./src
+#   rmount -u [dir]                       # unmount (default: ./remote)
+#   rmount -s                             # show sshfs mounts under $PWD
+#
+# Defaults are tuned for agentic coding: connection multiplexing and long
+# metadata caches, because agents traverse the tree constantly.
+
+set -euo pipefail
+
+PROG=${0##*/}
+DEFAULT_DIR=remote
+CACHE_TTL=${RMOUNT_CACHE_TTL:-300}
+
+die() { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
+info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+
+usage() {
+	sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+	exit "${1:-0}"
+}
+
+# --- helpers ---------------------------------------------------------------
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# sshfs may not be in the profile; fall back to an ephemeral nix shell.
+sshfs_cmd() {
+	if have sshfs; then
+		sshfs "$@"
+	elif have nix; then
+		info "sshfs not in PATH, using 'nix shell nixpkgs#sshfs'"
+		nix shell nixpkgs#sshfs -c sshfs "$@"
+	else
+		die "sshfs not found and no nix available"
+	fi
+}
+
+unmount_cmd() {
+	if have fusermount3; then fusermount3 "$@"
+	elif have fusermount; then fusermount "$@"
+	else die "no fusermount binary found"
+	fi
+}
+
+is_mounted() {
+	# Match the mountpoint field in /proc/self/mounts exactly.
+	awk -v t="$1" '$2 == t { found = 1 } END { exit !found }' /proc/self/mounts
+}
+
+# Keep a temporary mountpoint out of git status without committing an ignore
+# rule that will outlive the mount.
+git_exclude() {
+	local rel=$1 excl
+	excl=$(git rev-parse --git-dir 2>/dev/null)/info/exclude || return 0
+	[ -f "$excl" ] || return 0
+	grep -qxF "/$rel/" "$excl" || printf '/%s/\n' "$rel" >>"$excl"
+}
+
+# --- subcommands -----------------------------------------------------------
+
+do_status() {
+	awk -v p="$PWD/" '$3 ~ /^fuse\.sshfs$/ && index($2, p) == 1 { print $2 " <- " $1 }' \
+		/proc/self/mounts
+}
+
+do_unmount() {
+	local dir=${1:-$DEFAULT_DIR} target
+	target=$(realpath -m "$dir")
+
+	is_mounted "$target" || die "$target is not a mountpoint"
+
+	if ! unmount_cmd -u "$target" 2>/dev/null; then
+		info "busy — check with: lsof +D '$target'"
+		info "forcing lazy unmount"
+		unmount_cmd -uz "$target"
+	fi
+
+	rmdir "$target" 2>/dev/null || true
+	info "unmounted $target"
+}
+
+do_mount() {
+	local spec=$1 dir=${2:-$DEFAULT_DIR} target
+
+	case $spec in
+		*:*) ;;
+		*) die "remote must be host:/path, got '$spec'" ;;
+	esac
+
+	have sshfs || have nix || die "sshfs not found and no nix available"
+
+	target=$(realpath -m "$dir")
+	if is_mounted "$target"; then
+		die "$target is already a mountpoint"
+	fi
+
+	if [ -e "$target" ]; then
+		[ -d "$target" ] || die "$target exists and is not a directory"
+		[ -z "$(ls -A "$target")" ] || die "$target is not empty"
+	else
+		mkdir -p "$target"
+	fi
+
+	local opts=(
+		reconnect
+		ServerAliveInterval=15
+		ServerAliveCountMax=3
+		ControlMaster=auto
+		"ControlPath=$HOME/.ssh/cm-%r@%h:%p"
+		ControlPersist=10m
+		Compression=no
+		Ciphers=aes128-gcm@openssh.com
+		idmap=user
+		follow_symlinks
+		noatime
+		dir_cache=yes
+		"dcache_timeout=$CACHE_TTL"
+		"entry_timeout=$CACHE_TTL"
+		"attr_timeout=$CACHE_TTL"
+	)
+	local joined
+	joined=$(IFS=,; printf '%s' "${opts[*]}")
+
+	if ! sshfs_cmd "$spec" "$target" -o "$joined"; then
+		rmdir "$target" 2>/dev/null || true
+		die "mount failed"
+	fi
+
+	git_exclude "${target#"$PWD"/}"
+
+	info "mounted $spec -> $target"
+	info "metadata cache: ${CACHE_TTL}s — remote-side edits appear late"
+	info "unmount with: $PROG -u ${target#"$PWD"/}"
+}
+
+# --- entry point -----------------------------------------------------------
+
+case ${1:-} in
+	-h|--help) usage 0 ;;
+	-s|--status) do_status ;;
+	-u|--umount|--unmount) shift; do_unmount "${1:-}" ;;
+	"") usage 1 ;;
+	-*) die "unknown option: $1" ;;
+	*) do_mount "$@" ;;
+esac

@@ -1,0 +1,9 @@
+flake.nix.bak
+result
+AGENTS.md
+.claude
+CLAUDE.md
+graphify-out
+
+# per-host nixos-facter report, kept in /persist/etc/nix-local/<host>/
+nixos/hosts/*/hardware.json

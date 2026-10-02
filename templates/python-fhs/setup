@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Source this after entering the dev shell:
+#   nix develop
+#   . ./setup
+# Creates and activates an isolated uv venv for the project.
+
+export PATH="$HOME/.local/bin:$PATH"
+export UV_CACHE_DIR="$HOME/.cache/uv"
+export UV_PYTHON_DOWNLOADS=never
+
+WORKSPACE_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cd "$WORKSPACE_ROOT" || return 1
+
+export WORKSPACE_ROOT
+export NETRC="$WORKSPACE_ROOT/.netrc"
+
+# Load .env if present (may define PROJECT_NAME)
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
+# Project name: .env override, else pyproject.toml [project] name, else dir name
+if [ -z "${PROJECT_NAME:-}" ]; then
+  PROJECT_NAME=$(sed -n 's/^name[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+    pyproject.toml 2>/dev/null | head -n1)
+fi
+[ -z "${PROJECT_NAME:-}" ] && PROJECT_NAME=$(basename "$WORKSPACE_ROOT")
+export PROJECT_NAME
+
+# Detect platform and pick an isolated env name
+if command -v module >/dev/null 2>&1; then
+  PLATFORM="hpc"
+  module load nodejs/18.17.1
+  module load Python/3.12.3
+  module load OpenSSL/1.1
+  command -v uv >/dev/null 2>&1 || python3 -m pip install --user uv
+  export PATH="$HOME/.local/bin:$PATH"
+elif [ -f /.dockerenv ] || grep -qE '(docker|containerd)' /proc/1/cgroup 2>/dev/null; then
+  PLATFORM="docker"
+elif [ "${IN_NIX_SHELL:-0}" != "0" ] || [ -f /etc/NIXOS ]; then
+  PLATFORM="nix"
+else
+  echo "Error: unsupported environment (need nix develop, HPC module, or docker)"
+  return 1 2>/dev/null || exit 1
+fi
+
+export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/${PROJECT_NAME}-${PLATFORM}"
+export UV_PYTHON="$(command -v python3)"
+
+# REBUILD=1 scraps the env for a clean rebuild
+if [ "${REBUILD:-0}" != "0" ]; then
+  echo "Removing $UV_PROJECT_ENVIRONMENT for full rebuild..."
+  rm -rf "$UV_PROJECT_ENVIRONMENT"
+fi
+
+echo "Syncing $PROJECT_NAME on $PLATFORM ($UV_PROJECT_ENVIRONMENT)..."
+uv sync --dev
+
+# shellcheck disable=SC1091
+. "$UV_PROJECT_ENVIRONMENT/bin/activate"

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running statix check"
+statix check . -i .direnv -i remote
+
+echo "Running deadnix"
+deadnix flake.nix home nixos templates users --exclude .direnv
+
+# Host configs need the private input (scripts/test <host>); lint checks only.
+echo "Running flake lint checks"
+nix build --no-link .#checks.x86_64-linux.{format,statix,deadnix}
+
+echo "All checks passed"

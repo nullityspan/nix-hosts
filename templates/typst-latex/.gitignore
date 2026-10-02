@@ -1,0 +1,11 @@
+.direnv/
+result
+result-*
+_minted-*/
+*.aux
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+*.toc
+*.out
