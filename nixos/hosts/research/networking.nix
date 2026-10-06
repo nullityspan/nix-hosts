@@ -30,5 +30,7 @@
   services.openssh.settings = {
     PasswordAuthentication = lib.mkForce true;
     PermitRootLogin = lib.mkForce "no";
+    AllowTcpForwarding = lib.mkForce "local";
+    AllowAgentForwarding = lib.mkForce true;
   };
 }
