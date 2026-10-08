@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Formatting Nix files"
+find . -path ./remote -prune -o -name '*.nix' -type f -exec nixfmt {} +
+
+echo "Running statix fix"
+statix fix . -i .direnv -i remote
+
+echo "Done"

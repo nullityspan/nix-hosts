@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOST=$(hostname)
+USER=$(whoami)
+
+PROFILE="$HOME/.local/state/nix/profiles/home-manager"
+
+if [ -e "$PROFILE" ]; then
+	echo "Removing $PROFILE"
+	rm -f "$PROFILE"
+fi
+
+echo "Building home-manager config for $USER@$HOST"
+echo "Note: This is temporary. Run 'sudo nixos-rebuild switch --flake .#$HOST' to persist changes."
+
+nix build \
+	".#nixosConfigurations.$HOST.config.home-manager.users.$USER.home.activationPackage" \
+	--out-link "$PROFILE"
+
+echo "Activating"
+"$PROFILE/activate"
+
+echo "Done"

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOST="${1:?Usage: $0 <host>}"
+
+echo "Building $HOST"
+"$(dirname "$0")/rebuild" "$HOST" build
+
+echo "Dry-run $HOST"
+"$(dirname "$0")/rebuild" "$HOST" dry-run
+
+echo "Done"

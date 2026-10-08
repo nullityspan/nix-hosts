@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# scripts/remote-update
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <host> [user@ip-or-hostname]"
+  echo "Example: $0 desktop"
+  echo "         $0 <host> user@1.2.3.4"
+  exit 1
+fi
+
+HOST="$1"
+TARGET="${2:-}"
+
+if [[ -z "$TARGET" ]]; then
+  echo "Rebuilding $HOST locally..."
+  "$(dirname "$0")/rebuild" "$HOST" switch
+else
+  # shellcheck source=scripts/lib/private.sh
+  source "$(dirname "$0")/lib/private.sh"
+  private_prepare "$HOST"
+  echo "Deploying $HOST to $TARGET..."
+  nixos-rebuild switch \
+    --flake ".#$HOST" \
+    "${PRIVATE_ARGS[@]}" \
+    --target-host "$TARGET" \
+    --sudo
+fi

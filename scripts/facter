@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# scripts/facter <host> — generate this machine's nixos-facter report into
+# /persist/etc/nix-local/<host>/hardware.json (read by scripts/rebuild).
+set -euo pipefail
+
+HOST=${1:?Usage: $0 <host>}
+DIR="${NIX_LOCAL_DIR:-/persist/etc/nix-local}/$HOST"
+OUT="$DIR/hardware.json"
+
+[ -d "$(git rev-parse --show-toplevel)/nixos/hosts/$HOST" ] || {
+	echo "unknown host: $HOST" >&2
+	exit 1
+}
+
+FACTER=$(nix build --no-link --print-out-paths nixpkgs#nixos-facter)/bin/nixos-facter
+
+sudo install -d -m 755 "$DIR"
+[ -f "$OUT" ] && sudo cp "$OUT" "$OUT.bak" && echo "Backed up old report to $OUT.bak"
+sudo "$FACTER" -o "$OUT"
+sudo chmod 644 "$OUT"
+
+echo "Wrote $OUT"

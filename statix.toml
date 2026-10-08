@@ -1,0 +1,9 @@
+# statix configuration.
+#
+# repeated_keys (W20) is disabled: dotted attribute paths sharing a top-level
+# key (home.packages, home.file.*, home.sessionVariables, ...) are idiomatic in
+# NixOS / home-manager and are often grouped by topic rather than by key for
+# readability. The lint produces false positives against that style.
+disabled = [
+  "repeated_keys"
+]
