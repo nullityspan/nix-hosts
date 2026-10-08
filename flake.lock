@@ -20,6 +20,22 @@
         "type": "github"
       }
     },
+    "caveman": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791438150,
+        "narHash": "sha256-przOot/S0VLw2aP3tOdxF27mZHMp0NQhyTls0eDAjjs=",
+        "owner": "JuliusBrussee",
+        "repo": "caveman",
+        "rev": "2e08b9177c07bb7249a8a2d1a6758e5db281d002",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JuliusBrussee",
+        "repo": "caveman",
+        "type": "github"
+      }
+    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -179,6 +195,22 @@
         "url": "https://big.oisd.nl/domainswild"
       }
     },
+    "ponytail": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791431478,
+        "narHash": "sha256-U+TGSju2VBYHqaWZckf/QQMZXZ15KhOREfpA5EN/Deo=",
+        "owner": "DietrichGebert",
+        "repo": "ponytail",
+        "rev": "b088b2df6e08d4306c6a3c3d575fe38c2d2d2989",
+        "type": "github"
+      },
+      "original": {
+        "owner": "DietrichGebert",
+        "repo": "ponytail",
+        "type": "github"
+      }
+    },
     "private": {
       "flake": false,
       "locked": {
@@ -195,6 +227,7 @@
     "root": {
       "inputs": {
         "blender-bin": "blender-bin",
+        "caveman": "caveman",
         "disko": "disko",
         "home-manager": "home-manager",
         "impermanence": "impermanence",
@@ -203,6 +236,7 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "oisd": "oisd",
+        "ponytail": "ponytail",
         "private": "private",
         "sops-nix": "sops-nix"
       }

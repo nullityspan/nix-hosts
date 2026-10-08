@@ -32,6 +32,14 @@
       url = "path:./private-stub";
       flake = false;
     };
+    caveman = {
+      url = "github:JuliusBrussee/caveman";
+      flake = false;
+    };
+    ponytail = {
+      url = "github:DietrichGebert/ponytail";
+      flake = false;
+    };
     oisd = {
       url = "https://big.oisd.nl/domainswild";
       flake = false;
@@ -129,8 +137,7 @@
           taplo
           vscode-langservers-extracted
           openssl
-          claude-code
-          graphify
+          nodejs
         ];
 
         shellHook = ''
