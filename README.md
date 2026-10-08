@@ -1,8 +1,8 @@
 # nix-config
 
 Personal NixOS configuration. Hosts registered in the `hosts` list in
-`flake.nix`, one directory per host under `nixos/hosts/` (`workstation`,
-`research`).
+`flake.nix`, one directory per host under `nixos/hosts/` (`workstation`).
+Company-owned hosts live in the separate nix-moloch repo.
 
 ## Architecture
 

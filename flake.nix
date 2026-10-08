@@ -78,10 +78,7 @@
       nixosConfigurations =
         let
           lib = inputs.nixpkgs.lib;
-          hosts = [
-            "workstation"
-            "research"
-          ];
+          hosts = [ "workstation" ];
           # home-manager.users.<primary> and extraSpecialArgs.user are declared
           # per host in nixos/hosts/<name>/default.nix (hosts have different
           # primary users); only host-agnostic HM settings live here.

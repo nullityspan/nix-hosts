@@ -17,7 +17,7 @@
     settings = {
       name = lib.mkOption { type = lib.types.str; };
       # Real hostname when it differs from the flake codename in
-      # host.settings.name (e.g. codename "research", hostname "REDACTED").
+      # host.settings.name (e.g. a company-assigned hostname).
       hostName = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
