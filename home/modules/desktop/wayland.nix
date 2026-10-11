@@ -9,6 +9,11 @@ let
   hasWayland = osConfig.programs.sway.enable or false;
   hasBluetooth = osConfig.hardware.bluetooth.enable or false;
 
+  c = import ./palette.nix;
+  notify = "${pkgs.libnotify}/bin/notify-send";
+  osd = "${pkgs.swayosd}/bin/swayosd-client";
+  swaylock = "${pkgs.swaylock-effects}/bin/swaylock";
+
   unstable = import inputs.nixpkgs-unstable {
     inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
@@ -36,18 +41,39 @@ in
       menu = "${pkgs.fuzzel}/bin/fuzzel";
 
       gaps = {
-        inner = 0;
+        inner = 4;
         outer = 0;
+        smartGaps = true;
       };
+
+      window = {
+        border = 2;
+        titlebar = false;
+      };
+      floating = {
+        border = 2;
+        titlebar = false;
+      };
+
+      colors =
+        let
+          set = border: text: {
+            inherit border text;
+            background = "#${c.bg}";
+            indicator = border;
+            childBorder = border;
+          };
+        in
+        {
+          focused = set "#${c.accent}" "#${c.bright}";
+          focusedInactive = set "#${c.overlay}" "#${c.fg}";
+          unfocused = set "#${c.bg}" "#${c.muted}";
+          urgent = set "#${c.red}" "#${c.bright}";
+        };
+
+      workspaceAutoBackAndForth = true;
 
       bars = [ ];
-
-      assigns = {
-        "1" = [
-          { class = "^Google-chrome$"; }
-          { app_id = "^com.mitchellh.ghostty$"; }
-        ];
-      };
 
       startup = [
         { command = "${pkgs.networkmanagerapplet}/bin/nm-applet"; }
@@ -66,7 +92,7 @@ in
           "${mod}+Return" = "exec ${pkgs.ghostty}/bin/ghostty";
           "${mod}+d" = "exec ${pkgs.fuzzel}/bin/fuzzel";
           "${mod}+Shift+q" = "kill";
-          "${mod}+Shift+Escape" = "exec ${pkgs.swaylock-effects}/bin/swaylock";
+          "${mod}+Shift+Escape" = "exec ${swaylock}";
           "${mod}+Shift+e" = "exec ${pkgs.thunar}/bin/thunar";
           "${mod}+Shift+x" = "exec swaymsg exit";
 
@@ -123,14 +149,21 @@ in
           "--inhibited ${mod}+Escape" = "seat - shortcuts_inhibitor toggle";
           "--inhibited ${mod}+Shift+BackSpace" = "kill";
 
+          # Volume (OSD)
+          "XF86AudioRaiseVolume" = "exec ${osd} --output-volume raise";
+          "XF86AudioLowerVolume" = "exec ${osd} --output-volume lower";
+          "XF86AudioMute" = "exec ${osd} --output-volume mute-toggle";
+          "XF86AudioMicMute" = "exec ${osd} --input-volume mute-toggle";
+
           # Screenshot
           "${mod}+p" =
-            "exec ${pkgs.grim}/bin/grim -g \"$(${pkgs.slurp}/bin/slurp)\" - | ${pkgs.wl-clipboard}/bin/wl-copy";
+            "exec ${pkgs.grim}/bin/grim -g \"$(${pkgs.slurp}/bin/slurp)\" - | ${pkgs.wl-clipboard}/bin/wl-copy && ${notify} -t 2000 Screenshot 'Region copied'";
           "${mod}+Shift+p" =
-            "exec ${pkgs.grim}/bin/grim -g \"$(${pkgs.slurp}/bin/slurp)\" ~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png";
-          "${mod}+Ctrl+p" = "exec ${pkgs.grim}/bin/grim - | ${pkgs.wl-clipboard}/bin/wl-copy";
+            "exec f=~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png && ${pkgs.grim}/bin/grim -g \"$(${pkgs.slurp}/bin/slurp)\" $f && ${notify} -t 2000 -i $f Screenshot \"Saved $f\"";
+          "${mod}+Ctrl+p" =
+            "exec ${pkgs.grim}/bin/grim - | ${pkgs.wl-clipboard}/bin/wl-copy && ${notify} -t 2000 Screenshot 'Screen copied'";
           "${mod}+Ctrl+Shift+p" =
-            "exec ${pkgs.grim}/bin/grim ~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png";
+            "exec f=~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png && ${pkgs.grim}/bin/grim $f && ${notify} -t 2000 -i $f Screenshot \"Saved $f\"";
         };
 
       window.commands = [
@@ -163,6 +196,7 @@ in
           modules-left = [ "sway/workspaces" ];
           modules-center = [ "clock" ];
           modules-right = [
+            "tray"
             "cpu"
             "memory"
             "network"
@@ -175,6 +209,11 @@ in
             format = "{index}";
           };
 
+          tray = {
+            icon-size = 16;
+            spacing = 8;
+          };
+
           clock = {
             format = "{:%a %d %b  %H:%M}";
             tooltip-format = "<tt>{calendar}</tt>";
@@ -184,11 +223,11 @@ in
               weeks-pos = "left";
               on-scroll = 1;
               format = {
-                months = "<span color='#ffffff'><b>{}</b></span>";
-                days = "<span color='#c0c0c0'>{}</span>";
-                weeks = "<span color='#606060'>W{}</span>";
-                weekdays = "<span color='#ffffff'><b>{}</b></span>";
-                today = "<span color='#81a1c1'><b><u>{}</u></b></span>";
+                months = "<span color='#${c.bright}'><b>{}</b></span>";
+                days = "<span color='#${c.fg}'>{}</span>";
+                weeks = "<span color='#${c.muted}'>W{}</span>";
+                weekdays = "<span color='#${c.bright}'><b>{}</b></span>";
+                today = "<span color='#${c.accent}'><b><u>{}</u></b></span>";
               };
             };
             actions = {
@@ -199,36 +238,49 @@ in
           };
 
           cpu = {
-            format = "cpu {usage}%";
+            format = "  {usage}%";
+            tooltip-format = "CPU {usage}%";
+            states.warning = 80;
             interval = 5;
             on-click = "${pkgs.resources}/bin/resources";
           };
 
           memory = {
-            format = "mem {percentage}%";
+            format = "󰍛  {percentage}%";
+            tooltip-format = "{used:0.1f} / {total:0.1f} GiB";
+            states.warning = 80;
             interval = 5;
             on-click = "${pkgs.resources}/bin/resources";
           };
 
           network = {
-            format-wifi = "{essid}";
-            format-ethernet = "eth";
-            format-disconnected = "offline";
+            format-wifi = "󰖩  {essid}";
+            format-ethernet = "󰈀";
+            format-disconnected = "󰖪  offline";
             tooltip-format = "{ifname}: {ipaddr}";
+            tooltip-format-wifi = "{essid} ({signalStrength}%)\n{ifname}: {ipaddr}";
             on-click = "${pkgs.networkmanagerapplet}/bin/nm-connection-editor";
           };
 
           bluetooth = {
-            format = "bt {status}";
-            format-connected = "bt {device_alias}";
+            format = "󰂯";
+            format-off = "󰂲";
+            format-disabled = "󰂲";
+            format-connected = "󰂱  {device_alias}";
             on-click = "${pkgs.blueman}/bin/blueman-manager";
             tooltip-format-connected = "{device_enumerate}";
             tooltip-format-enumerate-connected = "{device_alias}";
           };
 
           pulseaudio = {
-            format = "vol {volume}%";
-            format-muted = "muted";
+            format = "{icon}  {volume}%";
+            format-muted = "󰖁  muted";
+            format-icons.default = [
+              "󰕿"
+              "󰖀"
+              "󰕾"
+            ];
+            tooltip-format = "{desc}";
             on-click = "${pkgs.pavucontrol}/bin/pavucontrol";
           };
         }
@@ -236,7 +288,7 @@ in
 
       style = ''
         * {
-          font-family: "JetBrains Mono", monospace;
+          font-family: "JetBrains Mono", "Symbols Nerd Font", monospace;
           font-size: 0.85rem;
           border: none;
           border-radius: 0;
@@ -244,32 +296,56 @@ in
         }
 
         window#waybar {
-          background: #1a1a1a;
-          color: #c0c0c0;
+          background: #${c.bg};
+          color: #${c.fg};
+        }
+
+        tooltip {
+          background: #${c.bg};
+          border: 1px solid #${c.overlay};
         }
 
         #workspaces button {
-          padding: 0 0.5rem;
-          color: #606060;
+          padding: 0 0.6rem;
+          color: #${c.muted};
           background: transparent;
+          box-shadow: inset 0 -2px transparent;
         }
 
         #workspaces button.focused {
-          color: #ffffff;
+          color: #${c.bright};
+          background: #${c.surface};
+          box-shadow: inset 0 -2px #${c.accent};
+        }
+
+        #workspaces button.urgent {
+          color: #${c.bg};
+          background: #${c.red};
         }
 
         #workspaces button:hover {
-          background: #333333;
+          background: #${c.overlay};
         }
 
-        #clock, #cpu, #memory, #network, #bluetooth, #pulseaudio {
+        #tray, #clock, #cpu, #memory, #network, #bluetooth, #pulseaudio {
           padding: 0 0.75rem;
         }
 
         #cpu, #pulseaudio, #memory, #network, #bluetooth {
-          color: #ededed;
+          color: #${c.fg};
         }
 
+        #cpu.warning, #memory.warning {
+          color: #${c.yellow};
+        }
+
+        #network.disconnected, #pulseaudio.muted, #bluetooth.off, #bluetooth.disabled {
+          color: #${c.red};
+        }
+
+        #tray > .needs-attention {
+          background: #${c.red};
+        }
       '';
     };
     swaylock = {
@@ -292,19 +368,18 @@ in
         timestr = "%H:%M";
         datestr = "%a, %d %b";
 
-        # Colors matching your dark theme
-        inside-color = "1a1a1a00";
-        inside-clear-color = "1a1a1a00";
-        inside-ver-color = "1a1a1a00";
-        inside-wrong-color = "1a1a1a00";
+        inside-color = "${c.bg}00";
+        inside-clear-color = "${c.bg}00";
+        inside-ver-color = "${c.bg}00";
+        inside-wrong-color = "${c.bg}00";
 
-        ring-color = "606060ff";
-        ring-clear-color = "c0c0c0ff";
-        ring-ver-color = "81a1c1ff";
-        ring-wrong-color = "ee6060ff";
+        ring-color = "${c.muted}ff";
+        ring-clear-color = "${c.fg}ff";
+        ring-ver-color = "${c.accent}ff";
+        ring-wrong-color = "${c.red}ff";
 
-        key-hl-color = "81a1c1ff";
-        bs-hl-color = "ee6060ff";
+        key-hl-color = "${c.accent}ff";
+        bs-hl-color = "${c.red}ff";
 
         separator-color = "00000000";
         text-color = "ffffffff";
@@ -331,18 +406,20 @@ in
           horizontal-pad = 12;
           vertical-pad = 8;
           inner-pad = 4;
+          icon-theme = "Papirus-Dark";
         };
         colors = {
-          background = "1a1a1aff";
-          text = "c0c0c0ff";
-          match = "ffffffff";
-          selection = "333333ff";
-          selection-text = "ffffffff";
-          border = "333333ff";
+          background = "${c.bg}ff";
+          text = "${c.fg}ff";
+          match = "${c.accent}ff";
+          selection = "${c.overlay}ff";
+          selection-text = "${c.bright}ff";
+          selection-match = "${c.accent}ff";
+          border = "${c.accent}ff";
         };
         border = {
-          width = 1;
-          radius = 0;
+          width = 2;
+          radius = 4;
         };
       };
     };
@@ -357,11 +434,11 @@ in
           "-calt"
         ];
 
-        background = "1a1a1a";
-        foreground = "c0c0c0";
-        cursor-color = "c0c0c0";
-        selection-background = "2a2a2a";
-        selection-foreground = "ffffff";
+        background = c.bg;
+        foreground = c.fg;
+        cursor-color = c.fg;
+        selection-background = c.surface;
+        selection-foreground = c.bright;
 
         # Normal colors (0-7)
         palette = [
@@ -400,38 +477,47 @@ in
       settings = {
         "" = {
           font = "JetBrains Mono 11";
-          background-color = "#1a1a1a";
-          text-color = "#c0c0c0";
-          border-color = "#3383d3";
-          border-size = 1;
-          border-radius = 0;
+          background-color = "#${c.bg}";
+          text-color = "#${c.fg}";
+          border-color = "#${c.accent}";
+          border-size = 2;
+          border-radius = 4;
+          max-icon-size = 48;
           padding = "12";
           margin = "10";
           width = 300;
           default-timeout = 5000;
         };
         "urgency=low" = {
-          background-color = "#1a1a1a";
-          text-color = "#808080";
+          text-color = "#${c.muted}";
+          border-color = "#${c.overlay}";
         };
         "urgency=high" = {
-          background-color = "#1a1a1a";
-          text-color = "#ffffff";
-          border-color = "#ee6060";
+          text-color = "#${c.bright}";
+          border-color = "#${c.red}";
         };
       };
     };
     swayidle = lib.mkIf hasWayland {
       enable = true;
       events = {
-        lock = "${pkgs.swaylock-effects}/bin/swaylock -f";
+        lock = "${swaylock} -f";
       };
       timeouts = [
         {
-          timeout = 300;
-          command = "${pkgs.swaylock-effects}/bin/swaylock -f";
+          # fade out over 10s first; any input aborts the lock
+          timeout = 290;
+          command = "${pkgs.chayang}/bin/chayang -d 10 && ${swaylock} -f";
+        }
+        {
+          timeout = 600;
+          command = "${pkgs.sway}/bin/swaymsg 'output * power off'";
+          resumeCommand = "${pkgs.sway}/bin/swaymsg 'output * power on'";
         }
       ];
+    };
+    swayosd = lib.mkIf hasWayland {
+      enable = true;
     };
   };
 

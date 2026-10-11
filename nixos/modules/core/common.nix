@@ -196,6 +196,7 @@ in
       liberation_ttf
       dejavu_fonts
       font-awesome
+      nerd-fonts.symbols-only
     ];
 
     fontconfig = {

@@ -46,14 +46,10 @@ in
     size = 24;
   };
 
-  # Qt theming to match GTK
+  # Qt follows the GTK theme (Materia-dark)
   qt = lib.mkIf hasWayland {
     enable = true;
-    platformTheme.name = "adwaita";
-    style = {
-      name = "adwaita-dark";
-      package = pkgs.adwaita-qt;
-    };
+    platformTheme.name = "gtk3";
   };
 
   home.sessionVariables = lib.mkIf hasWayland {
