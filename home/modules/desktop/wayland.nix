@@ -137,7 +137,6 @@ in
           "${mod}+w" = "layout tabbed";
           "${mod}+e" = "layout toggle split";
           "${mod}+Shift+space" = "floating toggle";
-          "${mod}+space" = "focus mode_toggle";
 
           # Speech-to-text (handy) - Tauri global-shortcut plugin can't
           # register under sway/wlroots (no GlobalShortcuts portal impl),
@@ -440,27 +439,7 @@ in
         selection-background = c.surface;
         selection-foreground = c.bright;
 
-        # Normal colors (0-7)
-        palette = [
-          "0=#1a1a1a" # black
-          "1=#ee6060" # red
-          "2=#7ec87e" # green
-          "3=#d4a057" # yellow
-          "4=#81a1c1" # blue
-          "5=#b48ead" # magenta
-          "6=#88c0d0" # cyan
-          "7=#c0c0c0" # white
-
-          # Bright colors (8-15)
-          "8=#606060" # bright black
-          "9=#ff7070" # bright red
-          "10=#8fd88f" # bright green
-          "11=#e0b060" # bright yellow
-          "12=#93b3d3" # bright blue
-          "13=#c6a0bf" # bright magenta
-          "14=#9ad0e0" # bright cyan
-          "15=#ffffff" # bright white
-        ];
+        palette = lib.imap0 (i: hex: "${toString i}=#${hex}") c.ansi;
 
         window-padding-x = 8;
         window-padding-y = 8;
