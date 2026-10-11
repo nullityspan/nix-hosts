@@ -4,6 +4,9 @@
   config,
   ...
 }:
+let
+  c = import ../../../home/modules/desktop/palette.nix;
+in
 {
   security.pam.services.swaylock = {
     enable = true;
@@ -62,7 +65,16 @@
               exit 0
             fi
           fi
-          pick=$(printf '%s\n' "$choices" | ${pkgs.fuzzel}/bin/fuzzel --dmenu --prompt='Share: ')
+          # click a visible window; Esc falls back to the full list (monitors, other workspaces)
+          id=$(${pkgs.sway}/bin/swaymsg -t get_tree \
+            | ${pkgs.jq}/bin/jq -r '.. | objects | select(.pid != null and .visible == true)
+                | "\(.rect.x),\(.rect.y) \(.rect.width)x\(.rect.height) \(.foreign_toplevel_identifier)"' \
+            | ${pkgs.slurp}/bin/slurp -r -f '%l' -b '#${c.bg}80' -c '#${c.accent}' -B '#${c.accent}33' -w 2)
+          if [ -n "$id" ]; then
+            pick=$(printf '%s\n' "$choices" | grep -F -- "($id)" | head -n1)
+          else
+            pick=$(printf '%s\n' "$choices" | ${pkgs.fuzzel}/bin/fuzzel --dmenu --prompt='Share: ')
+          fi
           [ -n "$pick" ] && printf '%s\n' "$pick" > "$cache"
           printf '%s\n' "$pick"
         ''}";
