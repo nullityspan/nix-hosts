@@ -126,7 +126,6 @@ in
         polkit_gnome
         pavucontrol
         pulsemixer
-        easyeffects
         crosspipe
         bluez
         bluez-tools
@@ -190,6 +189,74 @@ in
         selection-clipboard = "clipboard";
       };
     };
+  };
+
+  # Mic chain: rumble HPF, AI denoise, de-ess, tone EQ, level, ceiling.
+  # Preset keys follow EasyEffects 8 (src/*_preset.cpp); omitted keys use defaults.
+  services.easyeffects = lib.mkIf hasWayland {
+    enable = true;
+    preset = "mic-clean";
+    extraPresets.mic-clean.input =
+      let
+        eqBands = {
+          band0 = {
+            type = "Bell";
+            frequency = 250.0;
+            gain = -2.0;
+            q = 1.0;
+          };
+          band1 = {
+            type = "Bell";
+            frequency = 3000.0;
+            gain = 2.0;
+            q = 1.0;
+          };
+          band2 = {
+            type = "Hi-shelf";
+            frequency = 10000.0;
+            gain = 2.0;
+            q = 0.7;
+          };
+        };
+      in
+      {
+        blocklist = [ ];
+        plugins_order = [
+          "filter#0"
+          "deepfilternet#0"
+          "deesser#0"
+          "equalizer#0"
+          "compressor#0"
+          "limiter#0"
+        ];
+        "filter#0" = {
+          type = "High-pass";
+          frequency = 80.0;
+          slope = "x2";
+        };
+        "deepfilternet#0".attenuation-limit = 40.0;
+        "deesser#0" = {
+          threshold = -20.0;
+          ratio = 3.0;
+        };
+        "equalizer#0" = {
+          mode = "IIR";
+          num-bands = 3;
+          left = eqBands;
+          right = eqBands;
+        };
+        "compressor#0" = {
+          threshold = -20.0;
+          ratio = 3.0;
+          attack = 10.0;
+          release = 100.0;
+          makeup = 4.0;
+        };
+        "limiter#0" = {
+          threshold = -1.0;
+          release = 20.0;
+        };
+      };
   };
 
   systemd.user.services.set-default-volume = lib.mkIf hasWayland {
