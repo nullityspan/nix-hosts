@@ -108,7 +108,16 @@
               ];
             };
         in
-        lib.genAttrs hosts mkHost;
+        lib.genAttrs hosts mkHost
+        // {
+          installer = lib.nixosSystem {
+            inherit system;
+            modules = [ ./nixos/installer ];
+          };
+        };
+
+      packages.${system}.installer-iso =
+        inputs.self.nixosConfigurations.installer.config.system.build.isoImage;
 
       formatter.${system} = pkgs.nixfmt;
 
