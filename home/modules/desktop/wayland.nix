@@ -14,6 +14,14 @@ let
   osd = "${pkgs.swayosd}/bin/swayosd-client";
   swaylock = "${pkgs.swaylock-effects}/bin/swaylock";
 
+  # Dot grid with a faint accent glow in the centre; nothing from the screen shows through.
+  lockBg = pkgs.runCommand "lock-bg.png" { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
+    magick -size 24x24 xc:'#${c.bg}' -fill '#${c.overlay}' -draw 'circle 12,12 13.2,12' dot.png
+    magick -size 2560x1440 tile:dot.png dots.png
+    magick -size 2560x1440 radial-gradient:'#${c.accent}'-'#${c.bg}' glow.png
+    magick dots.png -colorspace sRGB glow.png -compose blend -define compose:args=14 -composite $out
+  '';
+
   unstable = import inputs.nixpkgs-unstable {
     inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
@@ -351,14 +359,13 @@ in
       enable = true;
       package = pkgs.swaylock-effects;
       settings = {
-        screenshots = true;
+        image = "${lockBg}";
+        scaling = "fill";
         clock = true;
         indicator = true;
         indicator-radius = 100;
         indicator-thickness = 7;
 
-        effect-blur = "15x5";
-        effect-vignette = "0.5:0.5";
         fade-in = 0;
 
         font = "monospace";
