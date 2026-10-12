@@ -12,7 +12,7 @@
   #       SOPS Settings
   # ===============================================================
   # Host decryption key derived from the SSH host key. Per-host secrets are
-  # declared under `sops.secrets` in the host module (e.g. zen-password in
+  # declared under `sops.secrets` in the host module (e.g. moloch-password in
   # hosts/workstation/default.nix), keyed against secrets.sops.yaml.
   sops.age.sshKeyPaths = [ "${config.host.partition.persist.path}/etc/ssh/ssh_host_ed25519_key" ];
 

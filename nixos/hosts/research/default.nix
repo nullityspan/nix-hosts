@@ -5,9 +5,9 @@
   ...
 }:
 let
-  zen = import ../../../users/zen.nix;
+  moloch = import ../../../users/moloch.nix;
   # Work identity lives in private.nix.sops; no signing.
-  user = removeAttrs zen [ "signingKey" ] // {
+  user = removeAttrs moloch [ "signingKey" ] // {
     identity = "";
     email = "";
     authorizedKeys = [ ];
@@ -38,7 +38,7 @@ in
       extraLocale = "de_DE.UTF-8";
       keyboardLayout = "us";
     };
-    users.primary = "zen";
+    users.primary = "moloch";
     users.extra = [ "worker" ];
     partition = {
       device = "/dev/nvme0n1"; # 2nd NVMe disk stays unused
@@ -54,7 +54,7 @@ in
   networking.hostId = "REDACTED";
 
   sops.secrets = {
-    zen-password = {
+    moloch-password = {
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
     };
@@ -69,16 +69,16 @@ in
   };
 
   home-manager = {
-    users.zen = import ../../../home/work.nix;
+    users.moloch = import ../../../home/work.nix;
     extraSpecialArgs = { inherit inputs user; };
   };
 
   users.users = {
-    zen = {
+    moloch = {
       uid = 1000;
       # Nitrokeys only; drops the research host's own key.
       openssh.authorizedKeys.keys = lib.mkForce (
-        builtins.filter (lib.hasPrefix "sk-") zen.authorizedKeys
+        builtins.filter (lib.hasPrefix "sk-") moloch.authorizedKeys
       );
     };
     root.openssh.authorizedKeys.keys = lib.mkForce [ ];
