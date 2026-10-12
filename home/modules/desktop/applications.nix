@@ -162,7 +162,6 @@ in
         google-chrome
         spotify
         discord
-        lmstudio-bionic
         wtype
       ]
     )

@@ -27,6 +27,7 @@ in
 
   # Host configs use ZFS (disko runs from this kernel).
   boot.supportedFilesystems.zfs = true;
+  boot.zfs.forceImportRoot = false;
   networking.hostId = "8425e349";
 
   # Everything arrives via nix copy; never try cache.nixos.org (hangs behind proxy).

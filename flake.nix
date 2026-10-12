@@ -40,6 +40,10 @@
       url = "github:DietrichGebert/ponytail";
       flake = false;
     };
+    mattpocock-skills = {
+      url = "github:mattpocock/skills";
+      flake = false;
+    };
     oisd = {
       url = "https://big.oisd.nl/domainswild";
       flake = false;

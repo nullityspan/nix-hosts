@@ -23,9 +23,11 @@
       allowedUDPPorts = [ ];
       # SSH allow-list: extraInputRules in private.nix.sops
     };
-    dhcpcd.extraConfig = "nohook resolv.conf";
+    useDHCP = false; # NetworkManager does DHCP
   };
   services.resolved.enable = false;
+  # nothing served here; don't hold boot for a link
+  systemd.services.NetworkManager-wait-online.enable = false;
   services.openssh = {
     openFirewall = false;
     # research opens `ssh -R` into here to reach back

@@ -56,11 +56,11 @@ in
 
       window = {
         border = 2;
-        titlebar = false;
+        titlebar = true; # drag handle for moving and merging windows
       };
       floating = {
         border = 2;
-        titlebar = false;
+        titlebar = true; # drag handle for moving and merging windows
       };
 
       colors =
@@ -80,6 +80,8 @@ in
         };
 
       workspaceAutoBackAndForth = true;
+      # sway otherwise starts on the first bound workspace, which is Mod4+0 (10)
+      defaultWorkspace = "workspace number 1";
 
       bars = [ ];
 

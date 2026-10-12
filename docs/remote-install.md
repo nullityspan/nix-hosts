@@ -180,6 +180,92 @@ rm -rf "$EXTRA" "$P" result-toplevel result-diskoScript
 - Replace the `<host>-install` SSH entry with a normal one.
 - Later updates: `scripts/rebuild <host>` on the host, or `scripts/remote-update`.
 
+## Build host (deploy from another machine)
+
+Lets `<builder>` (e.g. the jump host) pull the repo, build, and deploy to
+`<host>` without the workstation. `<builder>` decrypts with its own host key,
+so give it `private.nix.sops` only. Runtime secrets stay target-only:
+
+```
+creation_rules:
+  - path_regex: nixos/hosts/<host>/private\.nix\.sops$
+    key_groups:
+      - age: [*recovery, *<host>, *<builder>]
+  - path_regex: nixos/hosts/<host>/secrets\.sops\.yaml$
+    key_groups:
+      - age: [*recovery, *<host>]
+```
+
+```
+sops updatekeys -y nixos/hosts/<host>/private.nix.sops    # workstation
+```
+
+Deploy key, so the FIDO agent isn't needed on `<builder>`:
+
+```
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_<host> -C <user>@<builder>-deploy   # on <builder>
+```
+
+Add the `.pub` to `<user>`'s authorized keys in the `<host>` config. The
+first deploy still needs the forwarded agent (`ssh -A <builder>`) or the
+reinstall below.
+
+On `<builder>`, with `hardware.json` in
+`/persist/etc/nix-local/<host>/`:
+
+```
+git pull
+NIX_SSHOPTS="-i ~/.ssh/id_ed25519_<host>" scripts/remote-update <host> <user>@<target>
+```
+
+`remote-update` builds locally and activates with `--sudo --ask-sudo-password`.
+`<user>` must be in `trusted-users` (`@wheel`) or the copy is refused.
+
+## Re-key / reinstall without wiping
+
+Use this when the host can't activate (e.g. wrong sops recipient, so there's
+no sudo password) or its host key leaked. Boot the installer on the target.
+The disks and `/persist` survive.
+
+Mount the installed system (the stub `private` input is enough here):
+
+```
+M=$(nix build --no-link --print-out-paths .#nixosConfigurations.<host>.config.system.build.mountScript)
+nix copy --to ssh://<host>-install $M
+ssh <host>-install "[ \"\$(hostname)\" = nixos ] || exit 1; $M"
+```
+
+New host key, generated in place so the private half never leaves the target:
+
+```
+ssh <host>-install '[ "$(hostname)" = nixos ] && findmnt /mnt/persist || exit 1
+  rm -f /mnt/persist/etc/ssh/ssh_host_ed25519_key*
+  ssh-keygen -t ed25519 -N "" -C root@<host> -f /mnt/persist/etc/ssh/ssh_host_ed25519_key
+  cat /mnt/persist/etc/ssh/ssh_host_ed25519_key.pub' \
+  | nix shell nixpkgs#ssh-to-age -c ssh-to-age
+```
+
+Replace `&<host>` in `.sops.yaml`, then re-key **and rotate** the data key
+(`updatekeys` alone keeps the old data key, which the leaked key can still
+decrypt from any old ciphertext):
+
+```
+for f in nixos/hosts/<host>/{secrets.sops.yaml,private.nix.sops}; do
+  sops updatekeys -y $f && sops rotate -i $f
+done
+```
+
+Build (§7, `toplevel` only, or on `<builder>`), then install into `/mnt`:
+
+```
+T=$(readlink -f result-toplevel)
+nix copy --to "ssh://<host>-install?remote-store=local?root=/mnt" $T
+ssh <host>-install "[ \"\$(hostname)\" = nixos ] || exit 1
+  nixos-install --root /mnt --system $T --no-root-passwd --no-channel-copy && reboot"
+```
+
+Then check `sudo ls /run/secrets` on the host.
+
 ## Gotchas
 
 - Untracked files are invisible to the flake: `git add` new host files.

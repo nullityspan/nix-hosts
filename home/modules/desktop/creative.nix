@@ -19,7 +19,7 @@ in
       unstable.obs-studio
       unstable.audacity
       unstable.gimp
-      unstable.freecad
+      pkgs.freecad # ponytail: unstable vtk 9.5.2 fails (missing PEGTL); back to unstable once fixed
     ]
     ++ lib.optionals (hasWayland && hasNvidia) [
       inputs.blender-bin.packages.${pkgs.stdenv.hostPlatform.system}.default
