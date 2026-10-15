@@ -31,7 +31,6 @@ in
   host = {
     settings = {
       name = "research"; # flake codename only
-      hostName = "REDACTED"; # real hostname — do not change
       stateVersion = "24.11";
       timeZone = "Europe/Berlin";
       defaultLocale = "en_US.UTF-8";
@@ -48,10 +47,6 @@ in
       swap.size = "64G";
     };
   };
-
-  # Hardcoded ZFS hostId for hostname REDACTED
-  # (md5 of the hostname, first 8 chars).
-  networking.hostId = "REDACTED";
 
   sops.secrets = {
     moloch-password = {
