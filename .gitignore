@@ -1,5 +1,7 @@
 flake.nix.bak
 result
+result-diskoScript
+result-toplevel
 AGENTS.md
 .claude
 CLAUDE.md
