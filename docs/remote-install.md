@@ -24,11 +24,11 @@ IP, `<jump>` jump host (omit if directly reachable), `<user>` primary user.
 
 ## 1. Boot the installer
 
-Preferred: the offline ISO from nix-zen (sshd on, root login with your keys,
+Preferred: the offline ISO from this repo (sshd on, root login with your keys,
 fallback password `nixos`, no substituters, ZFS):
 
 ```
-nix build ~/Dev/nix-zen#installer-iso
+nix build .#installer-iso
 ```
 
 Stock NixOS ISO also works: log in on the console and set a password for
