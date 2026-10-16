@@ -8,7 +8,6 @@
     ./hardware.nix
     ./boot.nix
     ./networking.nix
-    "${inputs.private}/private.nix"
 
     ../../modules/core
     ../../modules/hardware

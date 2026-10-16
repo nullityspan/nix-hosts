@@ -2,16 +2,18 @@
 # Sourced by scripts/*. Builds the `private` flake input for a host in a
 # tmpfs dir and sets PRIVATE_ARGS for nix/nixos-rebuild.
 #
-#   nixos/hosts/<host>/private.nix.sops   tracked, sops-encrypted NixOS module
+#   nixos/hosts/<host>/private.sops.yaml  tracked, non-secret host data -> host.json
+#   nixos/hosts/<host>/private.nix.sops   optional, tracked NixOS module -> private.nix
 #   /persist/etc/nix-local/<host>/hardware.json   nixos-facter report, untracked
 
 private_prepare() {
-	local host=$1 repo enc hw hostkey=/etc/ssh/ssh_host_ed25519_key
+	local host=$1 repo hw hostkey=/etc/ssh/ssh_host_ed25519_key
 	repo=$(git rev-parse --show-toplevel)
-	enc="$repo/nixos/hosts/$host/private.nix.sops"
+	local yaml="$repo/nixos/hosts/$host/private.sops.yaml"
+	local enc="$repo/nixos/hosts/$host/private.nix.sops"
 	hw="${NIX_LOCAL_DIR:-/persist/etc/nix-local}/$host/hardware.json"
 
-	[ -f "$enc" ] || { echo "missing $enc" >&2; return 1; }
+	[ -f "$yaml" ] || { echo "missing $yaml" >&2; return 1; }
 	[ -f "$hw" ] || {
 		echo "missing $hw — generate it on $host: scripts/facter $host" >&2
 		return 1
@@ -30,14 +32,23 @@ private_prepare() {
 	# deploys) need SOPS_AGE_KEY_FILE set explicitly.
 	# Redirect runs as the caller on purpose: the dir is theirs.
 	# shellcheck disable=SC2024,SC2016
-	if [ -n "${SOPS_AGE_KEY_FILE:-}" ]; then
-		SOPS_DECRYPTION_ORDER=age sops -d --input-type binary --output-type binary "$enc" >"$PRIVATE_DIR/private.nix"
-	elif ! sudo S2A="$s2a" HOSTKEY="$hostkey" ENC="$enc" bash -c \
-		'SOPS_AGE_KEY=$("$S2A" -private-key -i "$HOSTKEY") SOPS_DECRYPTION_ORDER=age \
-			exec sops -d --input-type binary --output-type binary "$ENC"' \
-		>"$PRIVATE_DIR/private.nix"; then
-		echo "cannot decrypt $enc with $hostkey (set SOPS_AGE_KEY_FILE for other hosts)" >&2
-		return 1
+	decrypt() {
+		if [ -n "${SOPS_AGE_KEY_FILE:-}" ]; then
+			SOPS_DECRYPTION_ORDER=age sops -d "$@"
+		else
+			sudo S2A="$s2a" HOSTKEY="$hostkey" bash -c \
+				'SOPS_AGE_KEY=$("$S2A" -private-key -i "$HOSTKEY") SOPS_DECRYPTION_ORDER=age \
+					exec sops -d "$@"' _ "$@"
+		fi || {
+			echo "cannot decrypt ${*: -1} with $hostkey (set SOPS_AGE_KEY_FILE for other hosts)" >&2
+			return 1
+		}
+	}
+	decrypt --output-type json "$yaml" >"$PRIVATE_DIR/host.json" || return 1
+	if [ -f "$enc" ]; then
+		decrypt --input-type binary --output-type binary "$enc" >"$PRIVATE_DIR/private.nix" || return 1
+	else
+		echo '_: { }' >"$PRIVATE_DIR/private.nix"
 	fi
 	cp "$hw" "$PRIVATE_DIR/hardware.json"
 

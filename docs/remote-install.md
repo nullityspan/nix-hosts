@@ -6,8 +6,9 @@ built on the workstation and pushed over SSH; the target needs no internet.
 Works for any flake that follows this layout:
 
 - `nixos/hosts/<host>/` — host config, listed in `flake.nix`
-- `nixos/hosts/<host>/private.nix.sops` — sops-encrypted module, fed in as the
-  `private` flake input (stubbed by `private-stub/`)
+- `nixos/hosts/<host>/private.sops.yaml` — non-secret identifying values
+  (`hostname`, `host_id`, addresses), fed in as `host.json` of the `private`
+  flake input (stubbed by `nixos/modules/core/private-stub/`). Optional `private.nix.sops` becomes `private.nix`.
 - `nixos/hosts/<host>/secrets.sops.yaml` — sops-nix secrets
 - sops-nix decrypts with `/persist/etc/ssh/ssh_host_ed25519_key`
 - disko + nixos-facter (`${inputs.private}/hardware.json`)
@@ -92,17 +93,22 @@ ssh-keygen -t ed25519 -N "" -C root@<host> -f $EXTRA/persist/etc/ssh/ssh_host_ed
 nix shell nixpkgs#ssh-to-age -c ssh-to-age < $EXTRA/persist/etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-Add the printed `age1…` key to `.sops.yaml`:
+Add the printed `age1…` key to `keys.nix`, a rule to `sops.nix`, then
+regenerate `.sops.yaml` (never edit it by hand):
 
 ```
-keys:
-  - &<host> "age1…"
-creation_rules:
-  - path_regex: nixos/hosts/<host>/(secrets\.sops\.yaml|private\.nix\.sops)$
-    key_groups:
-      - age:
-          - *recovery
-          - *<host>
+# keys.nix
+machines.<host>.age = "age1…";
+
+# sops.nix: add <host> to the age set, then a rule
+{
+  path = ''nixos/hosts/<host>/(secrets\.sops\.yaml|private\.nix\.sops)$'';
+  to = admins ++ [ "<host>" ];
+}
+```
+
+```
+scripts/sops-config
 ```
 
 ## 6. Secrets
@@ -126,8 +132,8 @@ Edit, re-key, track:
 
 ```
 sops nixos/hosts/<host>/secrets.sops.yaml
-sops updatekeys -y nixos/hosts/<host>/private.nix.sops
-git add .sops.yaml nixos/hosts/<host>/
+sops nixos/hosts/<host>/private.sops.yaml   # hostname, host_id = md5 (echo -n) first 8
+git add keys.nix sops.nix .sops.yaml nixos/hosts/<host>/
 ```
 
 Multi-line values:
@@ -144,8 +150,9 @@ keys) offline.
 ## 7. Build
 
 ```
-SOPS_DECRYPTION_ORDER=age sops -d --input-type binary --output-type binary \
-  nixos/hosts/<host>/private.nix.sops > $P/private.nix
+export SOPS_DECRYPTION_ORDER=age
+sops -d --output-type json nixos/hosts/<host>/private.sops.yaml > $P/host.json
+echo '_: { }' > $P/private.nix
 for a in toplevel diskoScript; do
   nix build .#nixosConfigurations.<host>.config.system.build.$a \
     --override-input private path:$P --no-write-lock-file -o result-$a
@@ -184,20 +191,23 @@ rm -rf "$EXTRA" "$P" result-toplevel result-diskoScript
 
 Lets `<builder>` (e.g. the jump host) pull the repo, build, and deploy to
 `<host>` without the workstation. `<builder>` decrypts with its own host key,
-so give it `private.nix.sops` only. Runtime secrets stay target-only:
+so give it `private.sops.yaml` only. Runtime secrets stay target-only. In
+`sops.nix`:
 
 ```
-creation_rules:
-  - path_regex: nixos/hosts/<host>/private\.nix\.sops$
-    key_groups:
-      - age: [*recovery, *<host>, *<builder>]
-  - path_regex: nixos/hosts/<host>/secrets\.sops\.yaml$
-    key_groups:
-      - age: [*recovery, *<host>]
+{
+  path = ''nixos/hosts/<host>/private\.sops\.yaml$'';
+  to = admins ++ [ "<host>" "<builder>" ];
+}
+{
+  path = ''nixos/hosts/<host>/secrets\.sops\.yaml$'';
+  to = admins ++ [ "<host>" ];
+}
 ```
 
 ```
-sops updatekeys -y nixos/hosts/<host>/private.nix.sops    # workstation
+scripts/sops-config
+sops updatekeys -y nixos/hosts/<host>/private.sops.yaml    # workstation
 ```
 
 Deploy key, so the FIDO agent isn't needed on `<builder>`:
@@ -245,12 +255,12 @@ ssh <host>-install '[ "$(hostname)" = nixos ] && findmnt /mnt/persist || exit 1
   | nix shell nixpkgs#ssh-to-age -c ssh-to-age
 ```
 
-Replace `&<host>` in `.sops.yaml`, then re-key **and rotate** the data key
+Replace `machines.<host>.age` in `keys.nix`, run `scripts/sops-config`, then re-key **and rotate** the data key
 (`updatekeys` alone keeps the old data key, which the leaked key can still
 decrypt from any old ciphertext):
 
 ```
-for f in nixos/hosts/<host>/{secrets.sops.yaml,private.nix.sops}; do
+for f in nixos/hosts/<host>/{secrets,private}.sops.yaml; do
   sops updatekeys -y $f && sops rotate -i $f
 done
 ```

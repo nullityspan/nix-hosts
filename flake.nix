@@ -29,9 +29,11 @@
     blender-bin.url = "github:edolstra/nix-warez?dir=blender";
     # Stub; scripts/rebuild overrides it with the host's decrypted private data.
     private = {
-      url = "path:./private-stub";
+      url = "path:./nixos/modules/core/private-stub";
       flake = false;
     };
+
+    # Agentic AI
     caveman = {
       url = "github:JuliusBrussee/caveman";
       flake = false;
@@ -44,6 +46,8 @@
       url = "github:mattpocock/skills";
       flake = false;
     };
+
+    # DNS filter
     oisd = {
       url = "https://big.oisd.nl/domainswild";
       flake = false;

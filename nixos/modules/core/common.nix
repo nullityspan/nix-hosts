@@ -5,12 +5,8 @@
   ...
 }:
 let
-  # Real hostname: host.settings.hostName overrides the flake codename.
-  hostName =
-    if config.host.settings.hostName != null then
-      config.host.settings.hostName
-    else
-      config.host.settings.name;
+  # Real hostname from private data, else the flake codename.
+  hostName = config.host.private.host.hostname or config.host.settings.name;
   inherit (config.host.settings) stateVersion;
   inherit (config.host.settings) timeZone;
   inherit (config.host.settings) defaultLocale;
@@ -28,9 +24,8 @@ in
     }
   ];
   networking.hostName = hostName;
-  # Default ZFS hostId; hosts with their own hostname set a hardcoded
-  # hostId (md5 of that hostname, first 8 chars) in their host config.
-  networking.hostId = lib.mkDefault "b2c79ad7";
+  # ZFS hostId: md5 of the hostname, first 8 chars (echo -n), from private data.
+  networking.hostId = lib.mkDefault (config.host.private.host.host_id or "b2c79ad7");
 
   # ===============================================================
   #       FUSE and SUDO

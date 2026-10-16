@@ -1,8 +1,11 @@
-_: {
+{ config, lib, ... }:
+let
+  inherit (config.host.private) host loaded;
+in
+{
   # ===============================================================
-  #       CORPORATE NETWORK (static; addresses in private.nix.sops)
+  #       CORPORATE NETWORK (static; addresses in private.sops.yaml)
   # ===============================================================
-  # Same setup as research so its private.nix carries over (IP + iface).
   host.partition.persist.extraDirectories = [
     "/etc/NetworkManager/system-connections"
   ];
@@ -12,8 +15,31 @@ _: {
     dns = "systemd-resolved";
   };
 
+  # Any wired en* NIC: DHCP (gateway, as on research) plus the static IP.
+  networking.networkmanager.ensureProfiles.profiles.lan = lib.mkIf loaded {
+    connection = {
+      id = "lan";
+      type = "ethernet";
+      autoconnect = true;
+    };
+    match.interface-name = "en*";
+    ipv4 = {
+      method = "auto";
+      address1 = "${host.address}/${toString host.prefix}";
+    };
+  };
+
   services.resolved = {
     enable = true;
-    settings.Resolve.DNSSEC = "allow-downgrade";
+    settings.Resolve = {
+      DNSSEC = "allow-downgrade";
+      DNS = lib.mkIf loaded host.dns;
+      Domains = lib.mkIf loaded (map (d: "~${d}") host.domains);
+    };
+  };
+
+  networking.proxy = lib.mkIf loaded {
+    default = host.proxy;
+    noProxy = host.no_proxy;
   };
 }

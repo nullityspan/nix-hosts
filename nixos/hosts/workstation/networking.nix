@@ -1,9 +1,13 @@
 {
+  config,
   lib,
   pkgs,
   inputs,
   ...
 }:
+let
+  inherit (config.host.private) host;
+in
 {
   # ===============================================================
   #       NETWORK MANAGER
@@ -21,10 +25,15 @@
       enable = true;
       allowedTCPPorts = [ ];
       allowedUDPPorts = [ ];
-      # SSH allow-list: extraInputRules in private.nix.sops
     };
     useDHCP = false; # NetworkManager does DHCP
   };
+  # SSH only from the research host (seen via the work site's NAT)
+  networking.firewall.extraInputRules = lib.mkIf config.host.private.loaded ''
+    ip saddr ${host.ssh_allow_from} tcp dport 22 accept
+  '';
+  # Shared NAT: a ban here would lock out the research host
+  services.fail2ban.ignoreIP = lib.mkIf config.host.private.loaded [ host.ssh_allow_from ];
   services.resolved.enable = false;
   # nothing served here; don't hold boot for a link
   systemd.services.NetworkManager-wait-online.enable = false;

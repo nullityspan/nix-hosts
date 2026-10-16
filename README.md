@@ -19,8 +19,10 @@ Remote hosts are deployed with `scripts/remote-update <host>`.
   declare settings, modules consume them (incl. auto-detected Nvidia/Bluetooth
   from the nixos-facter report).
 - **Private data**: identifying values (hostnames, addresses) live in
-  `nixos/hosts/<host>/private.nix.sops`, decrypted by `scripts/rebuild` into
-  the `private` flake input. Nothing identifying is committed in plain text.
+  `nixos/hosts/<host>/private.sops.yaml`, decrypted to JSON by
+  `scripts/rebuild` into the `private` flake input and read as
+  `config.host.private.host`. Nothing identifying is committed
+  in plain text.
 - **Secrets**: sops-nix, one scope per host. A host can decrypt its own scope
   and the scopes of hosts it manages; recovery keys can decrypt all.
 - **Dual channel**: system runs stable; fresher packages are pulled from

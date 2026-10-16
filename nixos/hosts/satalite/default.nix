@@ -1,5 +1,4 @@
 {
-  inputs,
   lib,
   pkgs,
   ...
@@ -12,7 +11,6 @@ in
     ./hardware.nix
     ./boot.nix
     ./networking.nix
-    "${inputs.private}/private.nix"
 
     ../../modules/core
     ../../modules/hardware/nvidia.nix
@@ -42,9 +40,6 @@ in
     hardware.hasNvidia = true;
     services.medicalImaging.enable = true;
   };
-
-  # md5 of "satalite", first 8 chars.
-  networking.hostId = "d6b8caad";
 
   sops.secrets = {
     moloch-password = {

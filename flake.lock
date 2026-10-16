@@ -231,12 +231,12 @@
       "flake": false,
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-cMssKECyijFwUlGy/+gIlhahPO6Ox5hhnwhSCAoMAC8=",
-        "path": "./private-stub",
+        "narHash": "sha256-ftxjK2auzz2DS8xvLMNeK2d3ju6z0iaccJSFE6FA6IM=",
+        "path": "./nixos/modules/core/private-stub",
         "type": "path"
       },
       "original": {
-        "path": "./private-stub",
+        "path": "./nixos/modules/core/private-stub",
         "type": "path"
       }
     },

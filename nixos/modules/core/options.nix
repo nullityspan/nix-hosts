@@ -16,12 +16,6 @@
     };
     settings = {
       name = lib.mkOption { type = lib.types.str; };
-      # Real hostname when it differs from the flake codename in
-      # host.settings.name (e.g. a company-assigned hostname).
-      hostName = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-      };
       stateVersion = lib.mkOption { type = lib.types.str; };
       timeZone = lib.mkOption { type = lib.types.str; };
       defaultLocale = lib.mkOption { type = lib.types.str; };
@@ -37,11 +31,6 @@
         type = lib.types.listOf lib.types.str;
         default = [ ];
       };
-    };
-    # Set by the host's private.nix; false means the stub input is active.
-    private.loaded = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
     };
     users = {
       primary = lib.mkOption { type = lib.types.str; };
