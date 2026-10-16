@@ -7,5 +7,5 @@ AGENTS.md
 CLAUDE.md
 graphify-out
 
-# per-host nixos-facter report, kept in /persist/etc/nix-local/<host>/
+# plaintext nixos-facter report; only hardware.json.sops is tracked
 nixos/hosts/*/hardware.json

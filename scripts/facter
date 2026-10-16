@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# scripts/facter <host> — generate this machine's nixos-facter report into
-# /persist/etc/nix-local/<host>/hardware.json (read by scripts/rebuild).
+# scripts/facter <host> — generate this machine's nixos-facter report and
+# encrypt it to nixos/hosts/<host>/hardware.json.sops (read by scripts/rebuild).
 set -euo pipefail
 
 HOST=${1:?Usage: $0 <host>}
-DIR="${NIX_LOCAL_DIR:-/persist/etc/nix-local}/$HOST"
-OUT="$DIR/hardware.json"
+REPO=$(git rev-parse --show-toplevel)
+OUT="$REPO/nixos/hosts/$HOST/hardware.json.sops"
 
-[ -d "$(git rev-parse --show-toplevel)/nixos/hosts/$HOST" ] || {
+[ -d "$REPO/nixos/hosts/$HOST" ] || {
 	echo "unknown host: $HOST" >&2
 	exit 1
 }
 
 FACTER=$(nix build --no-link --print-out-paths nixpkgs#nixos-facter)/bin/nixos-facter
 
-sudo install -d -m 755 "$DIR"
-[ -f "$OUT" ] && sudo cp "$OUT" "$OUT.bak" && echo "Backed up old report to $OUT.bak"
-sudo "$FACTER" -o "$OUT"
-sudo chmod 644 "$OUT"
+# Plaintext stays on tmpfs; encrypting needs only the recipients' public keys.
+TMP=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/facter.XXXXXX")
+trap 'sudo rm -rf "$TMP"' EXIT
+sudo "$FACTER" -o "$TMP/hardware.json"
+sudo cat "$TMP/hardware.json" |
+	sops encrypt --input-type binary --output-type binary \
+		--filename-override "$OUT" /dev/stdin >"$OUT.tmp"
+mv "$OUT.tmp" "$OUT"
 
 echo "Wrote $OUT"

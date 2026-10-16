@@ -1,4 +1,5 @@
 {
+  config,
   lib,
   pkgs,
   ...
@@ -23,7 +24,7 @@ in
 
   host = {
     settings = {
-      name = "satalite";
+      name = "satellite";
       stateVersion = "26.05";
       timeZone = "Europe/Berlin";
       defaultLocale = "en_US.UTF-8";
@@ -32,7 +33,7 @@ in
     };
     users.primary = "moloch";
     partition = {
-      device = "/dev/nvme0n1";
+      device = config.host.private.host.disk; # /dev/disk/by-id path
       persist.path = "/persist";
       esp.size = "2G";
       swap.size = "64G";

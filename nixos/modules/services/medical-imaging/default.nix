@@ -30,7 +30,7 @@ let
           namespace: '@ohif/extension-default.dataSourcesModule.dicomweb',
           sourceName: 'orthanc',
           configuration: {
-            friendlyName: 'Orthanc (satalite)',
+            friendlyName: 'Orthanc (satellite)',
             name: 'orthanc',
             wadoUriRoot: '/dicom-web',
             qidoRoot: '/dicom-web',

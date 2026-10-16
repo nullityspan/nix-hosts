@@ -1,5 +1,6 @@
 {
   inputs,
+  config,
   pkgs,
   ...
 }:
@@ -27,7 +28,7 @@
     };
     users.primary = "zen";
     partition = {
-      device = "/dev/nvme0n1";
+      device = config.host.private.host.disk; # /dev/disk/by-id path
       persist.path = "/persist";
       # Match the partition table already on disk.
       esp.size = "2G";

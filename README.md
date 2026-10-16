@@ -7,7 +7,7 @@ NixOS configuration for all my hosts in one flake. Hosts are registered in the
 | ------------- | ----------------------------------- | -------------------------- |
 | `workstation` | primary machine, manages all others | itself (`scripts/rebuild`) |
 | `research`    | compute host, often runs unattended | workstation                |
-| `satalite`    | shared server                       | research or workstation    |
+| `satellite`   | shared server                       | research or workstation    |
 
 Remote hosts are deployed with `scripts/remote-update <host>`.
 

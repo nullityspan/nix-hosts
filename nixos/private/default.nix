@@ -6,7 +6,7 @@ let
   # nixos/hosts/<host>/private.sops.yaml.
   file = "${inputs.private}/host.json";
   loaded = builtins.pathExists file;
-  # Generated per host by nixos-facter; not tracked (see scripts/rebuild).
+  # nixos-facter report, decrypted from nixos/hosts/<host>/hardware.json.sops.
   report = "${inputs.private}/hardware.json";
 in
 {

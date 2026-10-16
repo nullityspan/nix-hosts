@@ -4,7 +4,7 @@ let
   keys = import ./keys.nix;
   age = {
     inherit (keys.humans.zen) recovery nk1 nk2;
-    inherit (keys.machines) workstation research satalite;
+    inherit (keys.machines) workstation research satellite;
   };
   admins = [
     "recovery"
@@ -12,33 +12,29 @@ let
     "nk2"
   ];
 
+  # Who installs and deploys each host. Installers can decrypt and re-key all
+  # of that host's files, so installs never need an admin key.
+  installers = {
+    workstation = [ ];
+    research = [ "workstation" ];
+    satellite = [
+      "workstation"
+      "research"
+    ];
+  };
+
+  hostRule = host: {
+    path = ''nixos/hosts/${host}/((secrets|private)\.sops\.yaml|hardware\.json\.sops)$'';
+    to = admins ++ [ host ] ++ installers.${host};
+  };
+
   rules = [
     {
       path = ''secrets/common\.sops\.yaml$'';
       to = admins ++ [ "workstation" ];
     }
-    {
-      path = ''nixos/hosts/workstation/(secrets|private)\.sops\.yaml$'';
-      to = admins ++ [ "workstation" ];
-    }
-    {
-      path = ''nixos/hosts/research/(secrets|private)\.sops\.yaml$'';
-      to = admins ++ [ "research" ];
-    }
-    # research builds and deploys satalite, so it needs the private data
-    # (not the runtime secrets).
-    {
-      path = ''nixos/hosts/satalite/private\.sops\.yaml$'';
-      to = admins ++ [
-        "satalite"
-        "research"
-      ];
-    }
-    {
-      path = ''nixos/hosts/satalite/secrets\.sops\.yaml$'';
-      to = admins ++ [ "satalite" ];
-    }
-  ];
+  ]
+  ++ map hostRule (builtins.attrNames installers);
 
   concatMap = f: xs: builtins.concatStringsSep "" (map f xs);
   rule =

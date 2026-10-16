@@ -1,6 +1,7 @@
 {
   inputs,
   lib,
+  config,
   pkgs,
   ...
 }:
@@ -39,7 +40,7 @@ in
     users.primary = "moloch";
     users.extra = [ "worker" ];
     partition = {
-      device = "/dev/nvme0n1"; # 2nd NVMe disk stays unused
+      device = config.host.private.host.disk; # /dev/disk/by-id path; 2nd NVMe disk stays unused
       persist.path = "/persist";
       # Match the partition table already on disk.
       esp.size = "2G";

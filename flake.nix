@@ -98,7 +98,7 @@
           hosts = [
             "workstation"
             "research"
-            "satalite"
+            "satellite"
           ];
           # home-manager.users.<primary> and extraSpecialArgs.user are declared
           # per host in nixos/hosts/<name>/default.nix (hosts have different

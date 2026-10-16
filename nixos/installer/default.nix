@@ -18,12 +18,8 @@ in
     PasswordAuthentication = true;
   };
 
-  users.users.root = {
-    # ponytail: plaintext bootstrap password in store; image is short-lived, change it if the LAN is untrusted.
-    initialHashedPassword = lib.mkForce null;
-    initialPassword = "nixos";
-    openssh.authorizedKeys.keys = primary.authorizedKeys;
-  };
+  # No password baked in: set one per install on the console (`sudo passwd`).
+  users.users.root.openssh.authorizedKeys.keys = primary.authorizedKeys;
 
   # Host configs use ZFS (disko runs from this kernel).
   boot.supportedFilesystems.zfs = true;
