@@ -8,7 +8,7 @@ Works for any flake that follows this layout:
 - `nixos/hosts/<host>/` — host config, listed in `flake.nix`
 - `nixos/hosts/<host>/private.sops.yaml` — non-secret identifying values
   (`hostname`, `host_id`, addresses), fed in as `host.json` of the `private`
-  flake input (stubbed by `nixos/modules/core/private-stub/`). Optional `private.nix.sops` becomes `private.nix`.
+  flake input (stubbed by `nixos/modules/core/private-stub/`).
 - `nixos/hosts/<host>/secrets.sops.yaml` — sops-nix secrets
 - sops-nix decrypts with `/persist/etc/ssh/ssh_host_ed25519_key`
 - disko + nixos-facter (`${inputs.private}/hardware.json`)
@@ -102,7 +102,7 @@ machines.<host>.age = "age1…";
 
 # sops.nix: add <host> to the age set, then a rule
 {
-  path = ''nixos/hosts/<host>/(secrets\.sops\.yaml|private\.nix\.sops)$'';
+  path = ''nixos/hosts/<host>/(secrets|private)\.sops\.yaml$'';
   to = admins ++ [ "<host>" ];
 }
 ```
@@ -152,7 +152,6 @@ keys) offline.
 ```
 export SOPS_DECRYPTION_ORDER=age
 sops -d --output-type json nixos/hosts/<host>/private.sops.yaml > $P/host.json
-echo '_: { }' > $P/private.nix
 for a in toplevel diskoScript; do
   nix build .#nixosConfigurations.<host>.config.system.build.$a \
     --override-input private path:$P --no-write-lock-file -o result-$a

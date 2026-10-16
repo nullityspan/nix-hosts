@@ -6,7 +6,7 @@
 }:
 let
   moloch = import ../../../users/moloch.nix;
-  # Work identity lives in private.nix.sops; no signing.
+  # Identity set per repo by git-identity; no signing.
   user = removeAttrs moloch [ "signingKey" ] // {
     identity = "";
     email = "";
@@ -18,7 +18,6 @@ in
     ./hardware.nix
     ./boot.nix
     ./networking.nix
-    "${inputs.private}/private.nix"
     ./rdp.nix
 
     ../../modules/core

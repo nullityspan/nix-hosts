@@ -22,7 +22,7 @@ let
       to = admins ++ [ "workstation" ];
     }
     {
-      path = ''nixos/hosts/research/((secrets|private)\.sops\.yaml|private\.nix\.sops)$'';
+      path = ''nixos/hosts/research/(secrets|private)\.sops\.yaml$'';
       to = admins ++ [ "research" ];
     }
     # research builds and deploys satalite, so it needs the private data

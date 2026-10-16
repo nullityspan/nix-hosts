@@ -3,14 +3,12 @@
 # tmpfs dir and sets PRIVATE_ARGS for nix/nixos-rebuild.
 #
 #   nixos/hosts/<host>/private.sops.yaml  tracked, non-secret host data -> host.json
-#   nixos/hosts/<host>/private.nix.sops   optional, tracked NixOS module -> private.nix
 #   /persist/etc/nix-local/<host>/hardware.json   nixos-facter report, untracked
 
 private_prepare() {
 	local host=$1 repo hw hostkey=/etc/ssh/ssh_host_ed25519_key
 	repo=$(git rev-parse --show-toplevel)
 	local yaml="$repo/nixos/hosts/$host/private.sops.yaml"
-	local enc="$repo/nixos/hosts/$host/private.nix.sops"
 	hw="${NIX_LOCAL_DIR:-/persist/etc/nix-local}/$host/hardware.json"
 
 	[ -f "$yaml" ] || { echo "missing $yaml" >&2; return 1; }
@@ -45,11 +43,6 @@ private_prepare() {
 		}
 	}
 	decrypt --output-type json "$yaml" >"$PRIVATE_DIR/host.json" || return 1
-	if [ -f "$enc" ]; then
-		decrypt --input-type binary --output-type binary "$enc" >"$PRIVATE_DIR/private.nix" || return 1
-	else
-		echo '_: { }' >"$PRIVATE_DIR/private.nix"
-	fi
 	cp "$hw" "$PRIVATE_DIR/hardware.json"
 
 	# shellcheck disable=SC2034 # used by the sourcing script

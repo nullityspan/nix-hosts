@@ -1,3 +1,0 @@
-# Placeholder for the `private` flake input. Real per-host data lives in
-# nixos/hosts/<host>/private.sops.yaml; scripts/rebuild overrides it.
-_: { }

@@ -231,7 +231,7 @@
       "flake": false,
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-ftxjK2auzz2DS8xvLMNeK2d3ju6z0iaccJSFE6FA6IM=",
+        "narHash": "sha256-WNcv+s2bb+1xOHAbRqVnjjxpBI/z4Bh2l2nDYqVt4WA=",
         "path": "./nixos/modules/core/private-stub",
         "type": "path"
       },
