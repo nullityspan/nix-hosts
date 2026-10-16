@@ -8,7 +8,7 @@ Works for any flake that follows this layout:
 - `nixos/hosts/<host>/` — host config, listed in `flake.nix`
 - `nixos/hosts/<host>/private.sops.yaml` — non-secret identifying values
   (`hostname`, `host_id`, addresses), fed in as `host.json` of the `private`
-  flake input (stubbed by `nixos/modules/core/private-stub/`).
+  flake input (stubbed by `nixos/private/stub/`).
 - `nixos/hosts/<host>/secrets.sops.yaml` — sops-nix secrets
 - sops-nix decrypts with `/persist/etc/ssh/ssh_host_ed25519_key`
 - disko + nixos-facter (`${inputs.private}/hardware.json`)

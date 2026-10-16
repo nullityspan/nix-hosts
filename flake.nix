@@ -27,9 +27,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     blender-bin.url = "github:edolstra/nix-warez?dir=blender";
+
     # Stub; scripts/rebuild overrides it with the host's decrypted private data.
     private = {
-      url = "path:./nixos/modules/core/private-stub";
+      url = "path:./nixos/private/stub";
       flake = false;
     };
 

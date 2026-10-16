@@ -3,7 +3,7 @@
     ./common.nix
     ./hardening.nix
     ./options.nix
-    ./private.nix
+    ../../private
     ./users.nix
     ./sops.nix
     ./testing.nix

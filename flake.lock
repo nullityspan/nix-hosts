@@ -232,11 +232,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-WNcv+s2bb+1xOHAbRqVnjjxpBI/z4Bh2l2nDYqVt4WA=",
-        "path": "./nixos/modules/core/private-stub",
+        "path": "./nixos/private/stub",
         "type": "path"
       },
       "original": {
-        "path": "./nixos/modules/core/private-stub",
+        "path": "./nixos/private/stub",
         "type": "path"
       }
     },
