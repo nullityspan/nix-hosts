@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Render .sops.yaml from sops.nix (recipients from keys.nix).
+#   scripts/sops-config          write .sops.yaml
+#   scripts/sops-config --check  fail if .sops.yaml is out of date
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+new=$(nix eval --raw --file sops.nix)
+if [ "${1:-}" = --check ]; then
+	diff -u .sops.yaml - <<<"$new" || {
+		echo ".sops.yaml is stale: run scripts/sops-config" >&2
+		exit 1
+	}
+	exit 0
+fi
+printf '%s\n' "$new" >.sops.yaml
+echo "wrote .sops.yaml; after recipient changes run: sops updatekeys -y <files>"
