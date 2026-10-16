@@ -1,5 +1,5 @@
 {
-  config,
+  pkgs,
   user,
   lib,
   ...
@@ -9,24 +9,21 @@ let
   skKeys = builtins.filter (lib.hasPrefix "sk-") user.authorizedKeys;
 in
 {
+  # No global identity: each repo gets one via `git-identity`.
+  home.packages = [
+    (pkgs.writeShellApplication {
+      name = "git-identity";
+      text = builtins.readFile ./git-identity.sh;
+    })
+  ];
+
   programs.git = {
     enable = true;
-    settings.user = {
-      name = user.identity;
-      inherit (user) email;
-    };
-    # Signing is optional: only users with a signingKey in users/<name>.nix.
-    # The key handle file stays in ~/.ssh (recover: ssh-keygen -K).
-    signing = lib.mkIf (user ? signingKey) {
-      format = "ssh";
-      key = "${config.home.homeDirectory}/.ssh/${user.signingKey}";
-      signByDefault = true;
-    };
-    settings.gpg.ssh.allowedSignersFile = lib.mkIf (user ? signingKey) (
-      toString (
-        builtins.toFile "allowed_signers" (
-          lib.concatMapStrings (k: "${user.email} namespaces=\"git\" ${k}\n") skKeys
-        )
+    settings.user.useConfigOnly = true;
+    settings.gpg.format = "ssh";
+    settings.gpg.ssh.allowedSignersFile = toString (
+      builtins.toFile "allowed_signers" (
+        lib.concatMapStrings (k: "${user.email} namespaces=\"git\" ${k}\n") skKeys
       )
     );
   };
