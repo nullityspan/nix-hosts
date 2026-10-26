@@ -38,6 +38,9 @@ in
     };
   };
 
+  # Installers/jump hosts; aggressive sshd jail bans them after failed key tries.
+  services.fail2ban.ignoreIP = lib.mkIf loaded (host.fail2ban_ignore or [ ]);
+
   networking.proxy = lib.mkIf loaded {
     default = host.proxy;
     noProxy = host.no_proxy;

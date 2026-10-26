@@ -1,289 +1,210 @@
 # Remote install of a NixOS host
 
-Install a flake host onto a machine booted from the installer ISO. Everything
-is built on an installer machine and pushed over SSH; the target needs no
-internet. No admin key (Nitrokey) is needed: SSH uses a one-off root password,
-sops uses the installer's host key.
+Build a flake host on an installer machine and push it over SSH. The target
+needs no internet and no admin key (Nitrokey): sops uses the installer's host
+key, and SSH uses a one-off password or key.
 
-Layout:
+Files per host:
 
-- `nixos/hosts/<host>/` — host config, listed in `flake.nix`
-- `nixos/hosts/<host>/private.sops.yaml` — identifying values (`hostname`,
-  `host_id`, `disk`, addresses), fed in as `host.json` of the `private` flake
-  input (stubbed by `nixos/private/stub/`)
-- `nixos/hosts/<host>/hardware.json.sops` — nixos-facter report, fed in as
-  `hardware.json` of the `private` input
-- `nixos/hosts/<host>/secrets.sops.yaml` — sops-nix runtime secrets
-- `keys.nix` — age keys by name; `sops.nix` — recipients, rendered to
-  `.sops.yaml` by `scripts/sops-config`
-- sops-nix on the target decrypts with `/persist/etc/ssh/ssh_host_ed25519_key`
+- `nixos/hosts/<host>/private.sops.yaml`: identifying values (`hostname`,
+  `host_id`, `disk`, addresses), fed in as `host.json` of the `private` input
+- `nixos/hosts/<host>/hardware.json.sops`: nixos-facter report
+- `nixos/hosts/<host>/secrets.sops.yaml`: sops-nix runtime secrets
+- `keys.nix`: age keys; `sops.nix`: recipients, rendered to `.sops.yaml` by
+  `scripts/sops-config`
 
-Placeholders: `<repo>` flake checkout, `<host>` config name, `<target>` target
-IP, `<jump>` jump host (omit if directly reachable).
+The installer must be listed for `<host>` in `installers` in `sops.nix`.
+Placeholders: `<host>` config name, `<target>` IP, `<jump>` jump host.
 
-## Prerequisites
+Run every command on the installer, in the repo, in a real terminal. Several
+commands use `sudo` inside `$(…)`, and that fails without a TTY.
 
-- Installer machine: `<repo>`, Nix cache access, and listed for `<host>` in
-  `installers` in `sops.nix`. Its host key then decrypts and re-keys all of
-  `<host>`'s files (`scripts/lib/private.sh` does this via `sudo`).
-- Target booted from the installer ISO.
-- The disk named by `disk` in `private.sops.yaml` is **wiped**. Check it on
-  the target first (step 4).
-
-## 1. Boot the installer
+## 1. Working dir (tmpfs)
 
 ```
-nix build .#installer-iso
+W=$(mktemp -d "$XDG_RUNTIME_DIR/<host>.XXXX"); mkdir $W/extra $W/private
 ```
 
-ISO with sshd on, ZFS, no substituters, and no password baked in. On the
-target console (auto-login as `nixos`):
+`$XDG_RUNTIME_DIR` is wiped on logout, plaintext included. Each new shell
+needs `W` set again.
 
-```
-sudo passwd root
-```
+## 2. Reach the target as root
 
-Use a fresh password per install; anyone on the network can try it while the
-installer runs.
+Pick one:
 
-## 2. SSH alias
+- **Installer ISO** (`nix build .#installer-iso`). On the console, run
+  `sudo passwd root` with a fresh password.
+- **Running Linux** (nixos-anywhere kexecs into an installer). Put a one-off
+  key on root:
+  ```
+  ssh-keygen -q -t ed25519 -N "" -f $W/install_key
+  ```
+  Then append `install_key.pub` to `/root/.ssh/authorized_keys` on the target.
+  Kexec must be allowed: `sysctl kernel.kexec_load_disabled` must be `0`.
+  See [Kexec blocked](#kexec-blocked) if it is `1`.
 
-`~/.ssh/config`, password only, one shared connection (nixos-anywhere opens
-many; the password is typed once):
+SSH alias in `~/.ssh/config`:
 
 ```
 Host <host>-install
 	ProxyJump <jump>
 	HostName <target>
 	User root
-	PubkeyAuthentication no
-	PreferredAuthentications password
-	StrictHostKeyChecking no        # installer host key changes every boot
+	IdentityFile <W>/install_key        # kexec route; ISO route: PreferredAuthentications password
+	StrictHostKeyChecking no            # host key changes on kexec/install
 	UserKnownHostsFile /dev/null
 	ControlMaster auto
 	ControlPath ${XDG_RUNTIME_DIR}/ssh-%r@%h:%p
 	ControlPersist 60m
 ```
 
-Open the connection and check the target:
+Use an IP for `HostName`. The jump host may not resolve the name.
 
-```
-ssh <host>-install 'hostname; lsblk -d -o NAME,SIZE,MODEL'   # hostname must be nixos
-```
-
-## 3. Working dirs (tmpfs)
-
-```
-cd <repo>
-W=$(mktemp -d "$XDG_RUNTIME_DIR/<host>.XXXX")
-EXTRA=$W/extra    # files placed on the target
-P=$W/private      # plaintext hardware report
-mkdir $EXTRA $P
-```
-
-Stay in this shell; `$XDG_RUNTIME_DIR` is wiped on logout. Don't use plain
-`mktemp -d` (lands in `/tmp` on disk).
-
-## 4. Hardware report and disk
-
-Build facter here, copy it over, run it there:
+## 3. Hardware report and disk
 
 ```
 F=$(nix build --no-link --print-out-paths nixpkgs#nixos-facter)
-nix copy --to ssh://<host>-install $F            # add --no-check-sigs if refused
+nix copy --to ssh://<host>-install $F        # add --no-check-sigs if refused
 ssh <host>-install "$F/bin/nixos-facter -o /tmp/hardware.json"
-scp <host>-install:/tmp/hardware.json $P/
-ssh <host>-install ls -l /dev/disk/by-id | grep -v part
+scp <host>-install:/tmp/hardware.json $W/private/ && ssh <host>-install rm /tmp/hardware.json
+ssh <host>-install 'lsblk -d -o NAME,SIZE,MODEL; ls -l /dev/disk/by-id | grep -v part; ls -l /dev/disk/by-partlabel'
 ```
 
-Pick the install disk by its model/serial name
-(`/dev/disk/by-id/nvme-<model>_<serial>`), never `/dev/nvme0n1`: enumeration
-order changes, and a missing by-id path makes disko fail instead of wiping
-another disk. On a reinstall, confirm the old root disk with
-`ls -l /dev/disk/by-partlabel` first.
+Use the by-id path (`/dev/disk/by-id/nvme-<model>_<serial>`), never
+`/dev/nvme0n1`. If the path is missing, disko fails instead of wiping
+another disk. On a reinstall, the partlabels show which disk holds the old
+root.
 
-## 5. Host key and recipients
-
-sops-nix needs the host key at first boot, and it must already be a
-recipient. Generate it into `$EXTRA`, which nixos-anywhere copies to the
-target:
+## 4. Host key, recipients, re-key
 
 ```
-install -d $EXTRA/persist/etc/ssh
-ssh-keygen -q -t ed25519 -N "" -C root@<host> -f $EXTRA/persist/etc/ssh/ssh_host_ed25519_key
-nix shell nixpkgs#ssh-to-age -c ssh-to-age < $EXTRA/persist/etc/ssh/ssh_host_ed25519_key.pub
+install -d -m 755 $W/extra/persist/etc/ssh
+ssh-keygen -q -t ed25519 -N "" -C root@<host> -f $W/extra/persist/etc/ssh/ssh_host_ed25519_key
+nix shell nixpkgs#ssh-to-age -c ssh-to-age < $W/extra/persist/etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-Put the printed `age1…` key in `keys.nix` (`machines.<host>.age`). A new host
-also needs `<host>` in the `age` set and in `installers` in `sops.nix`:
-
-```
-installers = {
-  <host> = [ "workstation" ];   # machines that install and deploy <host>
-};
-```
-
-Each host gets one rule: admins, the host, and its installers. Regenerate
-(never edit `.sops.yaml` by hand):
+Put the `age1…` key in `keys.nix` (`machines.<host>.age`). A new host also
+needs entries in `sops.nix` (`age`, `installers`). Then:
 
 ```
 scripts/sops-config
-```
-
-## 6. Encrypt and re-key
-
-Encrypt the report (public keys only):
-
-```
 sops encrypt --input-type binary --output-type binary \
-  --filename-override nixos/hosts/<host>/hardware.json.sops $P/hardware.json \
+  --filename-override nixos/hosts/<host>/hardware.json.sops $W/private/hardware.json \
   > nixos/hosts/<host>/hardware.json.sops
-```
-
-Existing files of a reinstalled host are still encrypted to the old host key.
-Re-key them with the installer's host key (the private key lives only in that
-command's environment):
-
-```
-for f in nixos/hosts/<host>/{secrets,private}.sops.yaml; do
-  SOPS_AGE_KEY="$(sudo nix run nixpkgs#ssh-to-age -- -private-key -i /etc/ssh/ssh_host_ed25519_key)" \
-    sops updatekeys -y $f
-done
-```
-
-New host: create the files instead (`sops nixos/hosts/<host>/…` with the
-same `SOPS_AGE_KEY` prefix, or an admin key).
-
-`private.sops.yaml` needs `hostname`, `host_id` (first 8 hex chars of
-`echo -n <hostname> | md5sum`), `disk`, plus whatever the host's networking
-reads. Change one value:
-
-```
+export SOPS_AGE_KEY="$(sudo nix run nixpkgs#ssh-to-age -- -private-key -i /etc/ssh/ssh_host_ed25519_key)"
+for f in nixos/hosts/<host>/{secrets,private}.sops.yaml; do sops updatekeys -y $f; done
 sops set nixos/hosts/<host>/private.sops.yaml '["disk"]' '"/dev/disk/by-id/…"'
+unset SOPS_AGE_KEY
+git add keys.nix sops.nix .sops.yaml nixos/hosts/<host>/
 ```
 
-Every key referenced from `secrets.sops.yaml` must exist, or the build fails
-with `the key '…' cannot be found`. Key names are plaintext, so compare
-without decrypting:
+The re-key re-encrypts each file for the new host key. Check it: each file
+should contain the new `age1…` recipient and none of the old one.
+
+New host: create the files with `sops nixos/hosts/<host>/…` (same
+`SOPS_AGE_KEY`). `private.sops.yaml` needs `hostname`, `host_id` (first 8 hex
+of `echo -n <hostname> | md5sum`), `disk`, plus whatever the host's
+networking reads. Every key referenced from `secrets.sops.yaml` must exist:
 
 ```
 grep -rn -A3 'sops.secrets' nixos/hosts/<host> nixos/modules
 grep -oE '^[a-zA-Z0-9_-]+:' nixos/hosts/<host>/secrets.sops.yaml
 ```
 
-Generators: `mkpasswd -m yescrypt` (login passwords),
-`nix shell nixpkgs#apacheHttpd -c htpasswd -nB <name>` (nginx basic auth),
-`openssl rand -hex 32` (random keys). Back up any key whose loss breaks data
-continuity (e.g. pseudonymisation keys) offline.
+Back up keys whose loss breaks data continuity offline, for example
+pseudonymisation keys.
 
-Track everything (untracked files are invisible to the flake):
-
-```
-git add keys.nix sops.nix .sops.yaml nixos/hosts/<host>/
-```
-
-## 7. Build
-
-`private_prepare` decrypts `private.sops.yaml` and `hardware.json.sops` with
-this machine's host key into a tmpfs dir and sets `PRIVATE_ARGS`:
+## 5. Build
 
 ```
 source scripts/lib/private.sh
 private_prepare <host>
 for a in toplevel diskoScript; do
-  nix build .#nixosConfigurations.<host>.config.system.build.$a \
-    "${PRIVATE_ARGS[@]}" -o $W/result-$a
+  nix build .#nixosConfigurations.<host>.config.system.build.$a "${PRIVATE_ARGS[@]}" -o $W/result-$a
 done
+ls -l $W/result-toplevel                          # real hostname in the name
+grep -ho 'by-id/[^" ;]*' $W/result-diskoScript/* | sort -u   # only the install disk
 ```
 
-The toplevel name shows the real hostname from `private.sops.yaml`.
-
-## 8. Install (wipes the disk)
-
-Check you are on the installer, then install:
+## 6. Install (wipes the disk)
 
 ```
 ssh <host>-install "hostname; ls -l /dev/disk/by-id | grep <serial>"
 nix run github:nix-community/nixos-anywhere -- \
   --store-paths $W/result-diskoScript $W/result-toplevel \
-  --extra-files $EXTRA <host>-install
+  --extra-files $W/extra <host>-install
 ```
 
-If it aborts after disko, check `ssh <host>-install findmnt -R /mnt`. Still
-mounted → resume without re-partitioning:
+Kexec route: the target downloads the kexec image itself. If it has no
+internet, download the image on the installer and add `--kexec <tarball>`.
 
-```
-nix run github:nix-community/nixos-anywhere -- --phases install,reboot \
-  --store-paths $W/result-diskoScript $W/result-toplevel \
-  --extra-files $EXTRA <host>-install
-```
+If it aborts after disko, run `ssh <host>-install findmnt -R /mnt`. If `/mnt`
+is still mounted, resume with `--phases install,reboot` and the same
+arguments.
 
-## 9. After first boot
+## 7. After first boot
 
-The target must serve the generated host key (proves `/persist` landed):
-
-```
-ssh-keyscan -t ed25519 <target> 2>/dev/null | cut -d' ' -f3
-cut -d' ' -f2 $EXTRA/persist/etc/ssh/ssh_host_ed25519_key.pub
-```
-
-Log in as the primary user and check secrets (a working `sudo` password means
-sops-nix decrypted):
-
-```
-ssh <user>@<target> 'sudo ls /run/secrets'
-```
-
-Clean up:
+The old control socket now points at a dead system. Close it first:
 
 ```
 ssh -O exit <host>-install
+```
+
+Then check:
+
+```
+ssh <jump> ssh-keyscan -t ed25519 <target> | cut -d' ' -f3   # must match …
+cut -d' ' -f2 $W/extra/persist/etc/ssh/ssh_host_ed25519_key.pub
+ssh -t <user>@<target> 'hostname; sudo ls /run/secrets'      # sudo works = sops decrypted
 rm -rf "$W"
 ```
 
-- Delete stray host-key copies (e.g. on the jump host).
-- Replace the `<host>-install` SSH entry with a normal one.
-- Later updates: `scripts/rebuild <host>` on the host, or
-  `scripts/remote-update <host>` from an installer.
+Then turn the install alias into a normal entry, with the verified key in
+`known_hosts`. Later updates: run `scripts/rebuild <host>` on the host, or
+`scripts/remote-update <host>` from an installer.
+
+## Kexec blocked
+
+`nixos/modules/core/hardening.nix` sets `kernel.kexec_load_disabled = 1`. A
+running system can't clear it. On impermanence hosts, a `sysctl.d` override
+is wiped on reboot. Instead, boot once without `systemd-sysctl` (as root on
+the target):
+
+```
+e=$(grep -l "$(readlink -f /run/booted-system)" /boot/loader/entries/*.conf | head -1)
+sed -e 's/^title .*/title kexec-once/' -e 's/^options .*/& systemd.mask=systemd-sysctl.service/' \
+  "$e" > /boot/loader/entries/kexec-once.conf
+bootctl set-oneshot kexec-once.conf && systemctl reboot
+```
+
+The root dataset rolls back on that boot. Re-add `install_key.pub` to root
+afterwards. If the one-shot boot fails, the next reboot falls back to the
+normal entry.
 
 ## Deploy from another installer
 
-Any machine in `installers.<host>` can pull, build and deploy without the
-workstation. Deploy key, so no FIDO agent is needed there:
+Any machine in `installers.<host>` can deploy. Give it a deploy key and add
+the `.pub` to the user's authorized keys in the `<host>` config:
 
 ```
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_<host> -C <user>@<installer>-deploy
-```
-
-Add the `.pub` to the user's authorized keys in the `<host>` config. The
-first deploy still needs the forwarded agent (`ssh -A <installer>`) or the
-reinstall below.
-
-```
 git pull
 NIX_SSHOPTS="-i ~/.ssh/id_ed25519_<host>" scripts/remote-update <host> <user>@<target>
 ```
 
-`remote-update` builds locally and activates with `--sudo --ask-sudo-password`.
-`<user>` must be in `trusted-users` (`@wheel`) or the copy is refused.
+`<user>` must be in `trusted-users` (`@wheel`). The first deploy still needs
+`ssh -A <installer>`, or a reinstall.
 
 ## Re-key / reinstall without wiping
 
-Use this when the host can't activate (e.g. wrong sops recipient, so there's
-no sudo password) or its host key leaked. Boot the installer on the target
-and set up steps 1–2. The disks and `/persist` survive.
-
-Mount the installed system (the stub `private` input is enough here):
+Use this when the host can't activate (for example, a wrong sops recipient
+means no sudo password), or when its host key leaked. Boot the ISO (step 2)
+and keep `/persist`:
 
 ```
 M=$(nix build --no-link --print-out-paths .#nixosConfigurations.<host>.config.system.build.mountScript)
 nix copy --to ssh://<host>-install $M
 ssh <host>-install "[ \"\$(hostname)\" = nixos ] || exit 1; $M"
-```
-
-New host key, generated in place so the private half never leaves the target:
-
-```
 ssh <host>-install '[ "$(hostname)" = nixos ] && findmnt /mnt/persist || exit 1
   rm -f /mnt/persist/etc/ssh/ssh_host_ed25519_key*
   ssh-keygen -t ed25519 -N "" -C root@<host> -f /mnt/persist/etc/ssh/ssh_host_ed25519_key
@@ -291,9 +212,9 @@ ssh <host>-install '[ "$(hostname)" = nixos ] && findmnt /mnt/persist || exit 1
   | nix shell nixpkgs#ssh-to-age -c ssh-to-age
 ```
 
-Replace `machines.<host>.age` in `keys.nix`, run `scripts/sops-config`, then
-re-key **and rotate** the data key (`updatekeys` alone keeps the old data key,
-which the leaked key can still decrypt from any old ciphertext):
+Update `keys.nix` and run `scripts/sops-config`. Then re-key **and rotate**
+the data key; `updatekeys` alone keeps the old data key, which the leaked
+key can still read:
 
 ```
 export SOPS_AGE_KEY="$(sudo nix run nixpkgs#ssh-to-age -- -private-key -i /etc/ssh/ssh_host_ed25519_key)"
@@ -303,7 +224,7 @@ done
 unset SOPS_AGE_KEY
 ```
 
-Build (step 7, `toplevel` only), then install into `/mnt`:
+Build `toplevel` (step 5), then:
 
 ```
 T=$(readlink -f $W/result-toplevel)
@@ -312,13 +233,10 @@ ssh <host>-install "[ \"\$(hostname)\" = nixos ] || exit 1
   nixos-install --root /mnt --system $T --no-root-passwd --no-channel-copy && reboot"
 ```
 
-Then check `sudo ls /run/secrets` on the host.
-
 ## Test in a VM
 
-Run the whole flow against a QEMU VM first. Set the host's `disk` to the VM
-disk (`/dev/disk/by-id/nvme-QEMU_NVMe_Ctrl_<serial>`) and point
-`<host>-install` at `127.0.0.1`, port 2230:
+Set `disk` to `/dev/disk/by-id/nvme-QEMU_NVMe_Ctrl_<serial>` and point the
+alias at `127.0.0.1` port 2230:
 
 ```
 qemu-img create -f qcow2 disk.qcow2 128G
@@ -333,14 +251,15 @@ qemu-system-x86_64 -enable-kvm -machine q35 -cpu host -smp 4 -m 8G \
   -cdrom result/iso/*.iso -boot once=d
 ```
 
-`-device nvme` gives the same `/dev/nvme*` and by-id layout as real NVMe
-hosts. Afterwards, re-run steps 4–6 against the real target: new `disk`, new
-host key, re-key.
+Afterwards, redo steps 3–4 for the real target.
 
 ## Gotchas
 
 - Untracked files are invisible to the flake: `git add` new host files.
-- Decrypt and build on an installer; don't carry plaintext to the jump host.
-- Target behind a proxy/no internet: never `nix run` there; `nix copy` instead.
-- qemu fails with `GLIBC_2.43' not found`: a session `LD_LIBRARY_PATH` leaks
-  newer libraries; run it with `env -u LD_LIBRARY_PATH`.
+- Decrypt and build on an installer; never carry plaintext to the jump host.
+- fail2ban (aggressive mode) bans after 5 failed key attempts, and the target
+  then refuses connections. Put installer and jump IPs in `fail2ban_ignore`
+  in `private.sops.yaml`; satellite reads it. Have the Nitrokey ready before
+  the first login, because the new system accepts only `sk-` keys.
+- qemu fails with `GLIBC_2.43' not found`: run it with
+  `env -u LD_LIBRARY_PATH`.

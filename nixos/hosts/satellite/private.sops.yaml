@@ -10,6 +10,8 @@ domains:
     - ENC[AES256_GCM,data:VxT2OMfWVbY+M7FxB71AoBE=,iv:F1bAzPQ2Sl1F3EsVlQAZwK4zsdhBGqEMpyxCXfdZo/8=,tag:4bYdVbrQ5Kwsyh6FjDTRnw==,type:str]
     - ENC[AES256_GCM,data:IAAaJL9kYFxjNgWSgjc=,iv:iYG9OqRD6mFJBC7ESBIk8eMZvAII4rN/jfKCDnfn8Kw=,tag:AbDz3Oks+NI8CilJ3efmJg==,type:str]
 disk: ENC[AES256_GCM,data:6JrovRqj40k5Vkoavi/I38HFA6Ts74K6iddFjWj5KPbeDWM+0GZKmvZ9tZwI072YCJ2kBK4aVqw=,iv:2F3SMFHVstTuspZupFyCvISBtPI0O9Lvguh3ehr3izA=,tag:oxsuZPKSohUV3Hxp43/Xlg==,type:str]
+fail2ban_ignore:
+    - ENC[AES256_GCM,data:hGUekf5KmBSRsQ98,iv:Obg2jQ4C42zQKvH0NpbpWUTJzgYrfSJnqwPQz4zPRRA=,tag:bvFWQIBzstpAaMbc9Ec1lQ==,type:str]
 sops:
     age:
         - enc: |
@@ -78,7 +80,7 @@ sops:
             q6LmafXcSXa2/lIui0lgDENzYRvjJwOZ4EobGHpzfYP+c+mIdrn9aQ==
             -----END AGE ENCRYPTED FILE-----
           recipient: age1wjm0wahfyagjup8pp0trxewj29vz4s6d9ejfs5a7c6dz37fl24ashts8qg
-    lastmodified: "2026-10-25T17:40:04Z"
-    mac: ENC[AES256_GCM,data:ICpBVWEReqJEUWSK6OZvLMQttyxiYKf5lI/7d8eCEjUa6NFrCJd+3nCthAHkAAlmGDib0uTXCASdE3A7Td+uxX5hFSB+y2GZ4j1uyDFu8hOgQqNNOGSeKdEpX2MfQjIW94HyJKcNWzVinARfcrywwfvWIeNt/EQ+T78z9c58wq4=,iv:WXL/mKYvbj+JdR4go2KTifxPIqcTYydNxLDBFGYuw7g=,tag:eY3ef/0Yy4u3O00Yl8+JnQ==,type:str]
+    lastmodified: "2026-10-26T07:27:21Z"
+    mac: ENC[AES256_GCM,data:ses2BYrXS8EtGBgaCXEgx7+6fAixf5H+uDLLyvu08X2Ydu47/BBGrX3vmpinf54YDEARNvL75EwvD7PaNEWnRaLzkESOnkLJSfrzlHj2C1Ik68oLsebAanuVjnZW6SorsJaU7+QCnCnPzCfnwHXmD0QsI6agO4BpV6svcoCo2KA=,iv:DYw8g6U3sR5Jc0P+C1huwZ6id2rRR7NljF45ZgTFEnw=,tag:sNWJedf8aPOn/UtssiBRXw==,type:str]
     unencrypted_suffix: _unencrypted
     version: 3.13.3
