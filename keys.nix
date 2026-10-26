@@ -22,6 +22,6 @@
       ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICGsFa3oqBVQR8WTkEkWEp4oQvFYZgDuYTC2ZrTON/Pi research";
       age = "age1wjm0wahfyagjup8pp0trxewj29vz4s6d9ejfs5a7c6dz37fl24ashts8qg";
     };
-    satellite.age = "age1tnlm96aeuec6tmqfgjuyzlfts9j47pvsggjuktx7dgre5k6jj4usm8ccdc";
+    satellite.age = "age1kvmazlfyp753na53y0wafgr6keg9qv3gwr6r3qq803m60e9g6ycsg6qfux";
   };
 }
