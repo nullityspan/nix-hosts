@@ -3,9 +3,15 @@
 # into .git/config. Standalone on purpose: copy to hosts outside this flake.
 set -euo pipefail
 
+persona_dir=/run/secrets/git-persona
+
 usage() {
   cat <<EOF
-Usage: git-identity [--name NAME] [--email EMAIL] [--key PATH|none]
+Usage: git-identity PERSONA
+       git-identity [--name NAME] [--email EMAIL] [--key PATH|none]
+
+PERSONA includes $persona_dir/PERSONA (sops-managed gitconfig) and drops
+any identity set directly in the repo.
 
 Writes user.name, user.email and, with a key, ssh commit signing and
 core.sshCommand into the current repo. Missing values are asked for.
@@ -13,6 +19,19 @@ core.sshCommand into the current repo. Missing values are asked for.
 interactively from ~/.ssh/*.pub and keys held by ssh-agent.
 EOF
 }
+
+if [ $# -eq 1 ] && [ "${1#-}" = "$1" ]; then
+  f=$persona_dir/$1
+  [ -r "$f" ] || { echo "no persona at $f" >&2; exit 1; }
+  git rev-parse --git-dir >/dev/null
+  for k in user.name user.email user.signingkey gpg.format commit.gpgsign tag.gpgsign core.sshCommand; do
+    git config --local --unset-all "$k" || true
+  done
+  git config --local --unset-all include.path "^$persona_dir/" || true
+  git config --local --add include.path "$f"
+  echo "persona $1: $(git config user.name) <$(git config user.email)>"
+  exit 0
+fi
 
 name="" email="" key="" key_set=0
 while [ $# -gt 0 ]; do
@@ -72,6 +91,7 @@ case "$key" in
 esac
 [ -z "$pub" ] || [ -r "$pub" ] || { echo "no public key at $pub" >&2; exit 1; }
 
+git config --local --unset-all include.path "^$persona_dir/" || true
 git config --local user.name "$name"
 git config --local user.email "$email"
 if [ -n "$pub" ]; then

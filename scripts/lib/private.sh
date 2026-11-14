@@ -23,7 +23,9 @@ private_prepare() {
 	# Recipients are the host key converted to X25519 (as sops-nix does), so
 	# convert it too; the raw ssh-ed25519 identity would not match.
 	local s2a
-	s2a=$(nix build --no-link --print-out-paths nixpkgs#ssh-to-age)/bin/ssh-to-age
+	# Fallback covers hosts not yet rebuilt with ssh-to-age installed.
+	s2a=$(command -v ssh-to-age) ||
+		s2a=$(nix build --no-link --print-out-paths nixpkgs#ssh-to-age)/bin/ssh-to-age
 
 	# Host key only. No fallback to the caller's keys: a PGP card behind it
 	# would burn PIN attempts on every failed run. Other hosts' files (remote

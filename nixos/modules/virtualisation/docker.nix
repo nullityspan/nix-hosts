@@ -6,7 +6,10 @@ _: {
       enable = true;
       enableOnBoot = false; # socket-activated on first use
       daemon.settings.features.cdi = true;
-      rootless.enable = true;
+      rootless = {
+        enable = true;
+        setSocketVariable = true; # users are not in the docker group
+      };
       autoPrune = {
         enable = true;
         dates = "weekly";

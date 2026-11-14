@@ -39,6 +39,11 @@
         type = lib.types.listOf lib.types.str;
         default = [ ];
       };
+      # Git personas of the primary user; data in secrets.sops.yaml (git-persona/<name>).
+      personas = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+      };
     };
     partition = {
       device = lib.mkOption { type = lib.types.str; };

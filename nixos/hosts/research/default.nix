@@ -39,6 +39,7 @@ in
     };
     users.primary = "moloch";
     users.extra = [ "worker" ];
+    users.personas = [ "work" ];
     partition = {
       device = config.host.private.host.disk; # /dev/disk/by-id path; 2nd NVMe disk stays unused
       persist.path = "/persist";
@@ -60,6 +61,11 @@ in
     worker-password = {
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
+    };
+    # Work persona's signing/push key: research works without the Nitrokey.
+    "git-persona/work.key" = {
+      sopsFile = ./secrets.sops.yaml;
+      owner = "moloch";
     };
   };
 

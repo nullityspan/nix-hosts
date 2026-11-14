@@ -37,6 +37,19 @@ in
   # Ensure home directories exist
   systemd.tmpfiles.rules = lib.concatMap homeRules ([ primary ] ++ extras);
 
+  # Git persona fragments for `git-identity <persona>`: a gitconfig include
+  # and its allowed_signers file. PII stays out of the store.
+  sops.secrets =
+    lib.genAttrs
+      (lib.concatMap (p: [
+        "git-persona/${p}"
+        "git-persona/${p}.signers"
+      ]) config.host.users.personas)
+      (_: {
+        sopsFile = ../../hosts + "/${config.host.settings.name}/secrets.sops.yaml";
+        owner = primary.name;
+      });
+
   # sops is the only password source; `switch` applies changes.
   users.mutableUsers = false;
 
@@ -60,7 +73,6 @@ in
         ++ checkGroups [
           "audio"
           "video"
-          "docker"
           "libvirtd"
           "scanner"
           "lp"

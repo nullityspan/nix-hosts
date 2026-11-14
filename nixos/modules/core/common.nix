@@ -40,11 +40,15 @@ in
   #       NIX CONFIGURATION
   # ===============================================================
   nix = {
+    gc = {
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 14d";
+    };
     settings = {
       experimental-features = "nix-command flakes";
       auto-optimise-store = true;
       keep-outputs = true;
-      trusted-users = [ "@wheel" ];
       connect-timeout = 5;
       log-lines = 25;
       min-free = 128000000;
@@ -75,6 +79,7 @@ in
     age
     age-plugin-fido2-hmac # sops/age unlock via Nitrokey (FIDO2 hmac-secret)
     sops
+    ssh-to-age # scripts/lib/private.sh
     sshfs
     man-pages
     man-pages-posix

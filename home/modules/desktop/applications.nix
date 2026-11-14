@@ -13,6 +13,25 @@ let
     inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
+
+  learnharness =
+    let
+      pname = "learnharness";
+      version = "0.6.1";
+      src = pkgs.fetchurl {
+        url = "https://github.com/amosblomqvist/learnharness/releases/download/v${version}/LearnHarness-${version}-x86_64.AppImage";
+        hash = "sha256-uKAz63QhZ3iT2W5JiLMBU/3+T8bw3EVveUcWG7oEG5g=";
+      };
+      contents = pkgs.appimageTools.extractType2 { inherit pname version src; };
+    in
+    pkgs.appimageTools.wrapType2 {
+      inherit pname version src;
+      extraInstallCommands = ''
+        install -Dm444 ${contents}/*.desktop -t $out/share/applications
+        substituteInPlace $out/share/applications/*.desktop --replace-fail 'Exec=AppRun' 'Exec=${pname}'
+        cp -r ${contents}/usr/share/icons $out/share
+      '';
+    };
 in
 {
   xdg = {
@@ -34,6 +53,7 @@ in
         "inode/directory" = "thunar.desktop";
         "application/x-directory" = "thunar.desktop";
         "application/pdf" = "org.pwmt.zathura.desktop";
+        "text/plain" = "dev.zed.Zed.desktop";
 
         "image/png" = "org.gnome.Loupe.desktop";
         "image/jpeg" = "org.gnome.Loupe.desktop";
@@ -126,6 +146,8 @@ in
         polkit_gnome
         pavucontrol
         pulsemixer
+        cameractrls-gtk4
+        v4l-utils
         crosspipe
         bluez
         bluez-tools
@@ -148,6 +170,7 @@ in
         sane-frontends
         simple-scan
         loupe
+        learnharness
 
       ]
       ++ lib.optionals hasDocker [

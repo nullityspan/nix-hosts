@@ -27,6 +27,11 @@
       keyboardLayout = "us";
     };
     users.primary = "zen";
+    users.personas = [
+      # "nullity"
+      # "real"
+      # "work"
+    ];
     partition = {
       device = config.host.private.host.disk; # /dev/disk/by-id path
       persist.path = "/persist";
@@ -46,7 +51,16 @@
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
     };
+    # GitHub token for flake fetches: per-account rate limit instead of the
+    # anonymous per-IP one. Workstation only: flake updates happen here.
+    github-access-token.sopsFile = ./secrets.sops.yaml;
   };
+  sops.templates.nix-access-tokens = {
+    content = "access-tokens = github.com=${config.sops.placeholder.github-access-token}";
+    group = "wheel";
+    mode = "0440";
+  };
+  nix.extraOptions = "!include ${config.sops.templates.nix-access-tokens.path}";
 
   home-manager = {
     users.zen = import ../../../home/zen.nix;

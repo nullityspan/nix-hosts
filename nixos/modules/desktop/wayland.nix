@@ -65,16 +65,21 @@ in
               exit 0
             fi
           fi
-          # click a visible window; Esc falls back to the full list (monitors, other workspaces)
-          id=$(${pkgs.sway}/bin/swaymsg -t get_tree \
-            | ${pkgs.jq}/bin/jq -r '.. | objects | select(.pid != null and .visible == true)
-                | "\(.rect.x),\(.rect.y) \(.rect.width)x\(.rect.height) \(.foreign_toplevel_identifier)"' \
-            | ${pkgs.slurp}/bin/slurp -r -f '%l' -b '#${c.bg}80' -c '#${c.accent}' -B '#${c.accent}33' -w 2)
-          if [ -n "$id" ]; then
-            pick=$(printf '%s\n' "$choices" | grep -F -- "($id)" | head -n1)
+          # click a visible window (or output when only monitors are offered);
+          # Esc or a miss falls back to the full list
+          slurp="${pkgs.slurp}/bin/slurp -b #${c.bg}80 -c #${c.accent} -B #${c.accent}33 -w 2"
+          pick=
+          if printf '%s\n' "$choices" | grep -q '^Window: '; then
+            id=$(${pkgs.sway}/bin/swaymsg -t get_tree \
+              | ${pkgs.jq}/bin/jq -r '.. | objects | select(.pid != null and .visible == true)
+                  | "\(.rect.x),\(.rect.y) \(.rect.width)x\(.rect.height) \(.foreign_toplevel_identifier)"' \
+              | $slurp -r -f '%l')
+            [ -n "$id" ] && pick=$(printf '%s\n' "$choices" | grep -F -- "($id)" | head -n1)
           else
-            pick=$(printf '%s\n' "$choices" | ${pkgs.fuzzel}/bin/fuzzel --dmenu --prompt='Share: ')
+            out=$($slurp -o -r -f '%o')
+            [ -n "$out" ] && pick=$(printf '%s\n' "$choices" | grep -E -- "^Monitor: $out( |$)" | head -n1)
           fi
+          [ -z "$pick" ] && pick=$(printf '%s\n' "$choices" | ${pkgs.fuzzel}/bin/fuzzel --dmenu --prompt='Share: ')
           [ -n "$pick" ] && printf '%s\n' "$pick" > "$cache"
           printf '%s\n' "$pick"
         ''}";

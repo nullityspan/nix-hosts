@@ -2,8 +2,9 @@
   description = "NixOS hosts";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "https://channels.nixos.org/nixos-26.05/nixexprs.tar.zst";
+    nixpkgs-small.url = "https://channels.nixos.org/nixos-26.05-small/nixexprs.tar.zst";
+    nixpkgs-unstable.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
     disko = {
       url = "github:nix-community/disko/master";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -160,6 +161,7 @@
           vscode-langservers-extracted
           openssl
           nodejs
+          graphify
         ];
 
         shellHook = ''
