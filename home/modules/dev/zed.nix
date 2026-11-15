@@ -3,16 +3,10 @@
 # tooling.nix, per-project tools from the direnv devShell (Zed's load_direnv
 # default). Zed's downloaded native binaries fail to exec on NixOS.
 {
-  inputs,
-  pkgs,
+  config,
+  unstable,
   ...
 }:
-let
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
-  };
-in
 {
   programs.zed-editor = {
     enable = true;
@@ -37,6 +31,9 @@ in
       theme = "Ayu Dark";
       buffer_font_family = "JetBrains Mono";
       format_on_save = "on";
+
+      # Same nixd options as Helix; the nix extension wraps this in { nixd = ...; }.
+      lsp.nixd.settings = config.programs.helix.languages.language-server.nixd.config.nixd;
 
       languages = {
         Nix = {

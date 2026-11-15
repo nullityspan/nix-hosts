@@ -1,0 +1,5 @@
+# Encrypted: nothing to extract, and the ciphertext changes on every re-key.
+# `?` keeps the plaintext `.sops.yaml` rule file in the graph.
+?*.sops.*
+# Status document that changes every session; its semantic nodes go stale.
+PLAN.md

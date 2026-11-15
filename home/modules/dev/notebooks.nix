@@ -1,15 +1,7 @@
 {
-  inputs,
-  pkgs,
+  unstable,
   ...
 }:
-let
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
-  };
-
-in
 {
   # Minimal Python: just the notebook infrastructure.
   # Scientific stacks (numpy/torch/polars/...) belong to per-project uv envs,

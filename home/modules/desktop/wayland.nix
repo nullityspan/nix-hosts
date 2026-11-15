@@ -1,5 +1,5 @@
 {
-  inputs,
+  unstable,
   pkgs,
   lib,
   osConfig,
@@ -22,10 +22,6 @@ let
     magick dots.png -colorspace sRGB glow.png -compose blend -define compose:args=14 -composite $out
   '';
 
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
-  };
 in
 {
   wayland.windowManager.sway = lib.mkIf hasWayland {

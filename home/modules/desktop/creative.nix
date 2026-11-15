@@ -2,14 +2,11 @@
   pkgs,
   lib,
   inputs,
+  unstable,
   osConfig,
   ...
 }:
 let
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
-  };
   hasWayland = osConfig.programs.sway.enable or false;
   hasNvidia = osConfig.host.hardware.hasNvidia or false;
 in

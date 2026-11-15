@@ -2,16 +2,9 @@
 # Per-language toolchains (python/c/rust/zig/typst/latex) live in flake
 # templates and are delivered per-project via direnv.
 {
-  inputs,
-  pkgs,
+  unstable,
   ...
 }:
-let
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
-  };
-in
 {
   home.packages = with unstable; [
     # Nix

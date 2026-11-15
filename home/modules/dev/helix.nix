@@ -4,21 +4,14 @@
 # devShell. Language entries for non-ambient toolchains (rust/zig/typst/latex)
 # are kept so editing works once a project devShell provides the tool.
 {
-  inputs,
+  unstable,
   osConfig,
-  pkgs,
   ...
 }:
 let
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
-  };
   nixpkgsChannel = osConfig.system.nixos.release;
 in
 {
-  home.packages = [ pkgs.mcp-nixos ];
-
   programs.helix = {
     enable = true;
     package = unstable.helix;
@@ -156,7 +149,7 @@ in
           ];
         };
         vscode-json-languageserver = {
-          command = "vscode-json-languageserver";
+          command = "vscode-json-language-server";
           args = [ "--stdio" ];
         };
         yaml-language-server = {

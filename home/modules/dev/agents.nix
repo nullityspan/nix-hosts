@@ -2,31 +2,57 @@
 # once in programs.mcp; agents opt in via enableMcpIntegration.
 {
   inputs,
+  unstable,
   pkgs,
   ...
 }:
 let
-  unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs.stdenv.hostPlatform) system;
-    config.allowUnfree = true;
+  # Without a pinned seed, `graphify update` re-execs `python -m graphify`,
+  # which loses the site dirs the Nix wrapper injects ("No module named graphify").
+  graphify = pkgs.symlinkJoin {
+    name = "graphify";
+    paths = [ graphifyPatched ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = "wrapProgram $out/bin/graphify --set-default PYTHONHASHSEED 0";
   };
+  # graphify has no Nix parser; graphify-nix.py adds one. --replace-fail makes
+  # an upstream change that moves an anchor break the build, not the parser.
+  graphifyPatched = unstable.graphify.overridePythonAttrs (old: {
+    postPatch = (old.postPatch or "") + ''
+      substitute ${./graphify-nix.py} graphify/extractors/nix.py \
+        --replace-fail @grammar@ ${unstable.tree-sitter-grammars.tree-sitter-nix}/parser
+      substituteInPlace graphify/detect.py \
+        --replace-fail "'.zig'," "'.zig', '.nix',"
+      substituteInPlace graphify/extract.py \
+        --replace-fail 'from graphify.extractors.zig import extract_zig' \
+          'from graphify.extractors.zig import extract_zig; from graphify.extractors.nix import extract_nix' \
+        --replace-fail '".zig": extract_zig,' '".zig": extract_zig, ".nix": extract_nix,'
+      substituteInPlace graphify/cli.py \
+        --replace-fail "'.sh', '.md'," "'.nix', '.sh', '.md',"
+    '';
+  });
+  # The skill needs a Python that imports graphify. Its own detection reads the
+  # shebang of bin/graphify, which is a bash wrapper here, then tries pip.
+  graphifyPython = unstable.python3.withPackages (p: [ (p.toPythonModule graphifyPatched) ]);
   # The package ships the skill as skill.md beside its references.
   graphifySkill = pkgs.runCommand "graphify-skill" { } ''
-    src=$(echo ${unstable.graphify}/lib/python*/site-packages/graphify)
+    src=$(echo ${graphifyPatched}/lib/python*/site-packages/graphify)
     mkdir $out
-    cp $src/skill.md $out/SKILL.md
+    substitute $src/skill.md $out/SKILL.md \
+      --replace-fail 'PYTHON=""' 'PYTHON="${graphifyPython}/bin/python3"'
     cp -r $src/skills/claude/references $out/
   '';
-  # Model ids or aliases (opus, sonnet, haiku) for the delegate skill.
+  # Model ids or aliases. The daily driver (opus, medium effort) is chosen in
+  # Claude Code itself; these are the roles agents and skills pin.
   models = {
     orchestrator = "opus";
     worker = "haiku";
+    vision = "sonnet";
   };
-  grill = "${inputs.mattpocock-skills}/skills/productivity";
 in
 {
   home.packages = [
-    unstable.graphify
+    graphify
     unstable.nodejs
   ];
 
@@ -35,8 +61,6 @@ in
     servers = {
       nixos.command = "${pkgs.mcp-nixos}/bin/mcp-nixos";
       context7.command = "${pkgs.context7-mcp}/bin/context7-mcp";
-      fetch.command = "${pkgs.mcp-server-fetch}/bin/mcp-server-fetch";
-      git.command = "${pkgs.mcp-server-git}/bin/mcp-server-git";
     };
   };
 
@@ -44,15 +68,9 @@ in
     enable = true;
     package = unstable.claude-code;
     enableMcpIntegration = true;
-    plugins = [
-      inputs.caveman
-      inputs.ponytail
-    ];
+    plugins = [ inputs.ponytail ];
     skills = {
       graphify = graphifySkill;
-      # grill-me only forwards to grilling, so both ship.
-      grill-me = "${grill}/grill-me";
-      grilling = "${grill}/grilling";
       delegate = ''
         ---
         name: delegate
@@ -79,6 +97,17 @@ in
       Do exactly the task in the prompt, nothing more. Do not widen scope or refactor surrounding code.
       If the prompt is ambiguous or the task needs a design decision, stop and report the question instead of guessing.
       Finish with a short report: what you changed (file:line), what you verified, and anything left undone.
+    '';
+    agents.vision = ''
+      ---
+      name: vision
+      description: Reads images, screenshots, plots and scanned PDFs and reports what they show. Use when a task depends on visual content.
+      model: ${models.vision}
+      ---
+
+      Describe only what is visible in the files named in the prompt. Quote text exactly.
+      Say plainly when something is unreadable or ambiguous instead of guessing.
+      Finish with a short report that answers the question in the prompt.
     '';
   };
 }

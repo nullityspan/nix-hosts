@@ -23,10 +23,6 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nix-vscode-extensions = {
-      url = "github:nix-community/nix-vscode-extensions";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     blender-bin.url = "github:edolstra/nix-warez?dir=blender";
 
     # Stub; scripts/rebuild overrides it with the host's decrypted private data.
@@ -36,16 +32,8 @@
     };
 
     # Agentic AI
-    caveman = {
-      url = "github:JuliusBrussee/caveman";
-      flake = false;
-    };
     ponytail = {
       url = "github:DietrichGebert/ponytail";
-      flake = false;
-    };
-    mattpocock-skills = {
-      url = "github:mattpocock/skills";
       flake = false;
     };
 
@@ -90,20 +78,15 @@
         in
         discovered // { default = discovered.generic; };
 
-      # Host registry: one entry per machine, config lives in
-      # nixos/hosts/<name>/ (delta-only — logic stays in nixos/modules/
-      # gated on host.* options). Adding a host = list entry + host dir.
+      # Hosts come from hosts.nix; config lives in nixos/hosts/<name>/
+      # (delta-only — logic stays in nixos/modules/ gated on host.* options).
+      # Adding a host = hosts.nix entry + host dir.
       nixosConfigurations =
         let
           lib = inputs.nixpkgs.lib;
-          hosts = [
-            "workstation"
-            "research"
-            "satellite"
-          ];
-          # home-manager.users.<primary> and extraSpecialArgs.user are declared
-          # per host in nixos/hosts/<name>/default.nix (hosts have different
-          # primary users); only host-agnostic HM settings live here.
+          hosts = builtins.attrNames (import ./hosts.nix);
+          # home-manager.users are wired from hosts.nix in
+          # nixos/modules/core/users.nix; only host-agnostic HM settings here.
           mkHost =
             name:
             lib.nixosSystem {
@@ -117,6 +100,10 @@
                   home-manager = {
                     useGlobalPkgs = false;
                     useUserPackages = true;
+                    extraSpecialArgs = {
+                      inherit inputs;
+                      unstable = pkgs;
+                    };
                   };
                 }
               ];
@@ -136,38 +123,35 @@
       formatter.${system} = pkgs.nixfmt;
 
       # `nix flake check` gates these. Build/VM tests stay manual via
-      # scripts/{test,vmtest} since a full system closure is heavy for CI.
+      # `scripts/rebuild <host> build` and scripts/vmtest since a full system
+      # closure is heavy for CI.
       checks.${system} = {
         format = lintCheck "format" pkgs.nixfmt "find . -name '*.nix' -type f -exec nixfmt --check {} +";
         statix = lintCheck "statix" pkgs.statix "statix check .";
         deadnix = lintCheck "deadnix" pkgs.deadnix "deadnix --fail .";
+        # Runs from the repo root, so `# shellcheck source=scripts/...` resolves.
+        shellcheck =
+          lintCheck "shellcheck" pkgs.shellcheck
+            "shellcheck -x $(find scripts -type f) templates/python-fhs/setup home/modules/system/git-identity.sh";
       };
 
       devShells.${system}.default = pkgs.mkShellNoCC {
         name = "nix-config";
         packages = with pkgs; [
-          bash-language-server
+          # scripts/check, scripts/fmt
           deadnix
-          home-manager
-          manix
-          nixd
-          nix-diff
           nixfmt
-          nix-melt
-          nix-tree
-          prettier
           statix
-          taplo
-          vscode-langservers-extracted
-          openssl
-          nodejs
-          graphify
+          # shell scripts
+          shellcheck
+          shfmt
+          # scripts/lib/private.sh, scripts/facter
+          sops
+          ssh-to-age
+          # closure inspection
+          nix-diff
+          nix-tree
         ];
-
-        shellHook = ''
-          echo "NixOS Configuration Development Environment"
-          echo ""
-        '';
       };
     };
 }
