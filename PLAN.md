@@ -1,7 +1,8 @@
 # Plan: development tools and environments
 
-State at the end of 2026-11-14. Findings come from that day's review. Nothing
-below is committed; the tree also holds the earlier host-registry refactor.
+State at the end of 2026-11-15. Findings come from the 2026-11-14 review.
+Everything below is committed (2026-11-15), including the host-registry
+refactor; only the workstation has been rebuilt, and not with the latest tree.
 
 ## Ground rules
 
@@ -76,8 +77,6 @@ from `agents.nix`; not activated on a host.
   package by `agents.nix`, so it applies in every project. It emits file
   nodes, top-level bindings and `imports_from` edges for relative paths. The
   graph here now holds all 68 `.nix` files (464 nodes, 85 import edges).
-- The new file is untracked. The flake does not see untracked files, so run
-  `git add -N home/modules/dev/graphify-nix.py` before a host build.
 - Until the rebuild, `graphify` on `PATH` is the unpatched build: it keeps
   the Nix nodes but does not refresh them.
 - The skill now uses a pinned Python that imports graphify. Its own detection
