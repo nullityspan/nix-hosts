@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  inputs,
   ...
 }:
 let
@@ -54,6 +55,8 @@ in
       min-free = 128000000;
       max-free = 1000000000;
     };
+    # `nix flake init -t templates#<name>`; inputs.self keeps the remote URL off the hosts.
+    registry.templates.flake = inputs.self;
   };
 
   nixpkgs.config.allowUnfree = true;

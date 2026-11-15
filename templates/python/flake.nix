@@ -18,6 +18,9 @@
           python3
           python3Packages.ipython
         ];
+        # uv-managed Pythons are generic-Linux binaries that NixOS cannot run; use the Nix one.
+        UV_PYTHON_DOWNLOADS = "never";
+        UV_PYTHON_PREFERENCE = "only-system";
       };
     };
 }

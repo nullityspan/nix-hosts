@@ -25,7 +25,7 @@ private_prepare() {
 	local s2a
 	# Fallback covers hosts not yet rebuilt with ssh-to-age installed.
 	s2a=$(command -v ssh-to-age) ||
-		s2a=$(nix build --no-link --print-out-paths nixpkgs#ssh-to-age)/bin/ssh-to-age
+		s2a=$(nix build --no-link --print-out-paths --inputs-from "$repo" nixpkgs#ssh-to-age)/bin/ssh-to-age
 
 	# Host key only. No fallback to the caller's keys: a PGP card behind it
 	# would burn PIN attempts on every failed run. Other hosts' files (remote

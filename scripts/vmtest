@@ -11,16 +11,6 @@ private_prepare "$hostname"
 nix run -L ".#nixosConfigurations.${hostname}.config.system.build.vmWithDisko" "${PRIVATE_ARGS[@]}"
 
 echo "Clean-up"
-if [ -f "${hostname}-efi-vars.fd" ]; then
-	rm "${hostname}-efi-vars.fd"
-fi
-
-if [ -f "${hostname}.qcow2" ]; then
-	rm "${hostname}.qcow2"
-fi
-
-if [ -f result ]; then
-	rm result
-fi
+rm -f "${hostname}-efi-vars.fd" "${hostname}.qcow2"
 
 echo "Done"

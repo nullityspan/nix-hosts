@@ -44,11 +44,13 @@ elif [ "${IN_NIX_SHELL:-0}" != "0" ] || [ -f /etc/NIXOS ]; then
   PLATFORM="nix"
 else
   echo "Error: unsupported environment (need nix develop, HPC module, or docker)"
+  # shellcheck disable=SC2317 # exit is reached only when run, not sourced
   return 1 2>/dev/null || exit 1
 fi
 
 export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/${PROJECT_NAME}-${PLATFORM}"
-export UV_PYTHON="$(command -v python3)"
+UV_PYTHON="$(command -v python3)"
+export UV_PYTHON
 
 # REBUILD=1 scraps the env for a clean rebuild
 if [ "${REBUILD:-0}" != "0" ]; then
