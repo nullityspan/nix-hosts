@@ -1,6 +1,6 @@
 # home/work.nix — home-manager entry point for the research host.
 # moloch's modules minus free-time ones (creative, gaming).
-# `user` is injected via home-manager.extraSpecialArgs in nixos/hosts/research/default.nix.
+# `user` ({ name }) is injected from hosts.nix by nixos/modules/core/users.nix.
 { user, ... }:
 {
   imports = [

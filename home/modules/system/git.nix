@@ -1,13 +1,4 @@
-{
-  pkgs,
-  user,
-  lib,
-  ...
-}:
-let
-  # Hardware (FIDO) keys double as commit signing keys.
-  skKeys = builtins.filter (lib.hasPrefix "sk-") user.authorizedKeys;
-in
+{ pkgs, ... }:
 {
   # No global identity: each repo gets one via `git-identity`.
   home.packages = [
@@ -21,11 +12,6 @@ in
     enable = true;
     settings.user.useConfigOnly = true;
     settings.gpg.format = "ssh";
-    settings.gpg.ssh.allowedSignersFile = toString (
-      builtins.toFile "allowed_signers" (
-        lib.concatMapStrings (k: "${user.email} namespaces=\"git\" ${k}\n") skKeys
-      )
-    );
   };
 
   programs.gitui = {

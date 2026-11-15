@@ -1,5 +1,4 @@
 {
-  inputs,
   config,
   pkgs,
   ...
@@ -26,7 +25,6 @@
       extraLocale = "de_DE.UTF-8";
       keyboardLayout = "us";
     };
-    users.primary = "zen";
     users.personas = [
       # "nullity"
       # "real"
@@ -61,14 +59,6 @@
     mode = "0440";
   };
   nix.extraOptions = "!include ${config.sops.templates.nix-access-tokens.path}";
-
-  home-manager = {
-    users.zen = import ../../../home/zen.nix;
-    extraSpecialArgs = {
-      inherit inputs;
-      user = import ../../../users/zen.nix;
-    };
-  };
 
   # ===============================================================
   #       ESSENTIAL SYSTEM PACKAGES

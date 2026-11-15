@@ -1,5 +1,5 @@
 # Public key registry: the single source for SSH and age public keys.
-# Plaintext on purpose; nothing here is secret. Consumers: users/*.nix.
+# Plaintext on purpose; nothing here is secret. Host keys live in hosts.nix.
 {
   humans.zen = {
     # Nitrokey 3 resident keys; nk2 is the backup token.
@@ -13,15 +13,5 @@
     };
     # Offline emergency key, age only.
     recovery.age = "age1ye3hvd0gvus60dc0uu0thy8h5nkw4lvcn53uv2fsp7szksgvfexs6st2qj";
-  };
-
-  machines = {
-    workstation.age = "age1ust3kmy05n4z4x7f5etmctvpmv9gdy7y0mgvnyv6y9fuhm2lu5ysrasleg";
-    research = {
-      # Software key living on research (not a Nitrokey).
-      ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICGsFa3oqBVQR8WTkEkWEp4oQvFYZgDuYTC2ZrTON/Pi research";
-      age = "age1wjm0wahfyagjup8pp0trxewj29vz4s6d9ejfs5a7c6dz37fl24ashts8qg";
-    };
-    satellite.age = "age1kvmazlfyp753na53y0wafgr6keg9qv3gwr6r3qq803m60e9g6ycsg6qfux";
   };
 }

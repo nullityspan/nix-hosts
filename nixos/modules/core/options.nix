@@ -33,11 +33,20 @@
       };
     };
     users = {
-      primary = lib.mkOption { type = lib.types.str; };
-      # Secondary users without home-manager, resolved from users/<name>.nix.
-      extra = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
+      # The host's admin user from hosts.nix.
+      primary = lib.mkOption {
+        type = lib.types.str;
+        default =
+          let
+            host = config.host.settings.name;
+            admins = builtins.attrNames (
+              lib.filterAttrs (_: u: u.admin or false) (import ../../../hosts.nix).${host}.users
+            );
+          in
+          if builtins.length admins == 1 then
+            lib.head admins
+          else
+            throw "hosts.nix: ${host} has ${toString (builtins.length admins)} admin users; need exactly one, or set host.users.primary";
       };
       # Git personas of the primary user; data in secrets.sops.yaml (git-persona/<name>).
       personas = lib.mkOption {

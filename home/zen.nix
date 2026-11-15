@@ -1,5 +1,5 @@
 # home/zen.nix — home-manager entry point.
-# `user` (identity: name, email, keys) is injected via home-manager.extraSpecialArgs in flake.nix.
+# `user` ({ name }) is injected from hosts.nix by nixos/modules/core/users.nix.
 { user, ... }:
 {
   imports = [

@@ -10,10 +10,10 @@ Files per host:
   `host_id`, `disk`, addresses), fed in as `host.json` of the `private` input
 - `nixos/hosts/<host>/hardware.json.sops`: nixos-facter report
 - `nixos/hosts/<host>/secrets.sops.yaml`: sops-nix runtime secrets
-- `keys.nix`: age keys; `sops.nix`: recipients, rendered to `.sops.yaml` by
-  `scripts/sops-config`
+- `hosts.nix`: host age keys, users and `managedBy`; `keys.nix`: admin keys;
+  `sops.nix`: recipients, rendered to `.sops.yaml` by `scripts/sops-config`
 
-The installer must be listed for `<host>` in `installers` in `sops.nix`.
+The installer must be listed in `managedBy` of `<host>` in `hosts.nix`.
 Placeholders: `<host>` config name, `<target>` IP, `<jump>` jump host.
 
 Run every command on the installer, in the repo, in a real terminal. Several
@@ -83,8 +83,8 @@ ssh-keygen -q -t ed25519 -N "" -C root@<host> -f $W/extra/persist/etc/ssh/ssh_ho
 nix shell nixpkgs#ssh-to-age -c ssh-to-age < $W/extra/persist/etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-Put the `age1…` key in `keys.nix` (`machines.<host>.age`). A new host also
-needs entries in `sops.nix` (`age`, `installers`). Then:
+Put the `age1…` key in `hosts.nix` (`<host>.age`). A new host also needs
+`managedBy` and `users` there. Then:
 
 ```
 scripts/sops-config
@@ -95,7 +95,7 @@ export SOPS_AGE_KEY="$(sudo nix run nixpkgs#ssh-to-age -- -private-key -i /etc/s
 for f in nixos/hosts/<host>/{secrets,private}.sops.yaml; do sops updatekeys -y $f; done
 sops set nixos/hosts/<host>/private.sops.yaml '["disk"]' '"/dev/disk/by-id/…"'
 unset SOPS_AGE_KEY
-git add keys.nix sops.nix .sops.yaml nixos/hosts/<host>/
+git add hosts.nix .sops.yaml nixos/hosts/<host>/
 ```
 
 The re-key re-encrypts each file for the new host key. Check it: each file
@@ -161,7 +161,7 @@ rm -rf "$W"
 
 Then turn the install alias into a normal entry, with the verified key in
 `known_hosts`. Later updates: run `scripts/rebuild <host>` on the host, or
-`scripts/remote-update <host>` from an installer.
+`scripts/rebuild <host> switch --target <user>@<target>` from an installer.
 
 ## Kexec blocked
 
@@ -183,13 +183,14 @@ normal entry.
 
 ## Deploy from another installer
 
-Any machine in `installers.<host>` can deploy. Give it a deploy key and add
-the `.pub` to the user's authorized keys in the `<host>` config:
+Any machine in `managedBy` of `<host>` (`hosts.nix`) can deploy. Give it one
+deploy key for all its targets, set the `.pub` as `ssh` of `<installer>` in
+`hosts.nix`, and add `<installer>` to the user's `login` list on `<host>`:
 
 ```
-ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_<host> -C <user>@<installer>-deploy
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_deploy -C <user>@<installer>-deploy
 git pull
-NIX_SSHOPTS="-i ~/.ssh/id_ed25519_<host>" scripts/remote-update <host> <user>@<target>
+NIX_SSHOPTS="-i ~/.ssh/id_ed25519_deploy" scripts/rebuild <host> switch --target <user>@<target>
 ```
 
 `<user>` must be in `trusted-users` (`@wheel`). The first deploy still needs
@@ -212,7 +213,7 @@ ssh <host>-install '[ "$(hostname)" = nixos ] && findmnt /mnt/persist || exit 1
   | nix shell nixpkgs#ssh-to-age -c ssh-to-age
 ```
 
-Update `keys.nix` and run `scripts/sops-config`. Then re-key **and rotate**
+Update `hosts.nix` and run `scripts/sops-config`. Then re-key **and rotate**
 the data key; `updatekeys` alone keeps the old data key, which the leaked
 key can still read:
 

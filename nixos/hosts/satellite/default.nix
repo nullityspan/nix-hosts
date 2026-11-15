@@ -1,12 +1,8 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }:
-let
-  moloch = import ../../../users/moloch.nix;
-in
 {
   imports = [
     ./hardware.nix
@@ -31,7 +27,6 @@ in
       extraLocale = "de_DE.UTF-8";
       keyboardLayout = "us";
     };
-    users.primary = "moloch";
     partition = {
       device = config.host.private.host.disk; # /dev/disk/by-id path
       persist.path = "/persist";
@@ -51,13 +46,6 @@ in
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
     };
-  };
-
-  users.users = {
-    moloch.openssh.authorizedKeys.keys = lib.mkForce (
-      builtins.filter (lib.hasPrefix "sk-") moloch.authorizedKeys
-    );
-    root.openssh.authorizedKeys.keys = lib.mkForce [ ];
   };
 
   environment.systemPackages = with pkgs; [

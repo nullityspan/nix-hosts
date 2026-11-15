@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render .sops.yaml from sops.nix (recipients from keys.nix).
+# Render .sops.yaml from sops.nix (recipients from keys.nix and hosts.nix).
 #   scripts/sops-config          write .sops.yaml
 #   scripts/sops-config --check  fail if .sops.yaml is out of date
 set -euo pipefail

@@ -1,41 +1,55 @@
 {
-  inputs,
   config,
   lib,
   ...
 }:
 let
-  primary = import "${inputs.self}/users/${config.host.users.primary}.nix";
-  extras = map (n: import "${inputs.self}/users/${n}.nix") config.host.users.extra;
+  hosts = import ../../../hosts.nix;
+  keys = import ../../../keys.nix;
+  hostUsers = hosts.${config.host.settings.name}.users;
+  people = removeAttrs hostUsers [ "root" ];
+  withHome = lib.filterAttrs (_: u: u ? home) people;
+
+  # A login name is a human key from keys.nix, else a host's own key.
+  loginKeys = u: map (n: keys.humans.zen.${n}.ssh or hosts.${n}.ssh) (u.login or [ ]);
 
   checkGroups = groups: builtins.filter (g: builtins.hasAttr g config.users.groups) groups;
 
   # Hashes live in the host's sops file as `<user>-password`.
   passwordOf = name: { hashedPasswordFile = config.sops.secrets."${name}-password".path; };
 
-  homeRules = user: [
-    "d /home/${user.name} 0700 ${user.name} users -"
-    "d /home/${user.name}/.ssh 0700 ${user.name} users -"
-    "d /home/${user.name}/.ssh/sockets 0700 ${user.name} users -"
+  homeRules = name: [
+    "d /home/${name} 0700 ${name} users -"
+    "d /home/${name}/.ssh 0700 ${name} users -"
+    "d /home/${name}/.ssh/sockets 0700 ${name} users -"
   ];
 
-  mkExtraUser = user: {
-    isNormalUser = true;
-    description = user.identity;
-    openssh.authorizedKeys.keys = user.authorizedKeys;
-    extraGroups = [
-      "networkmanager"
-    ]
-    ++ checkGroups [
-      "docker"
-      "libvirtd"
-      "kvm"
-    ];
-  };
+  adminGroups = [
+    "wheel"
+    "networkmanager"
+  ]
+  ++ checkGroups [
+    "audio"
+    "video"
+    "libvirtd"
+    "scanner"
+    "lp"
+    "kvm"
+    "wireshark"
+  ];
+
+  mkUser =
+    name: u:
+    {
+      isNormalUser = true;
+      openssh.authorizedKeys.keys = loginKeys u;
+      extraGroups = lib.optionals (u.admin or false) adminGroups;
+    }
+    // passwordOf name;
 in
 {
   # Ensure home directories exist
-  systemd.tmpfiles.rules = lib.concatMap homeRules ([ primary ] ++ extras);
+  systemd.tmpfiles.rules = lib.concatMap homeRules (builtins.attrNames people);
 
   # Git persona fragments for `git-identity <persona>`: a gitconfig include
   # and its allowed_signers file. PII stays out of the store.
@@ -47,45 +61,21 @@ in
       ]) config.host.users.personas)
       (_: {
         sopsFile = ../../hosts + "/${config.host.settings.name}/secrets.sops.yaml";
-        owner = primary.name;
+        owner = config.host.users.primary;
       });
 
   # sops is the only password source; `switch` applies changes.
   users.mutableUsers = false;
 
-  users.users =
-    builtins.listToAttrs (
-      map (user: {
-        inherit (user) name;
-        value = mkExtraUser user // passwordOf user.name;
-      }) extras
-    )
-    // {
-      # Create primary user account
-      ${primary.name} = {
-        isNormalUser = true;
-        description = primary.identity;
-        openssh.authorizedKeys.keys = primary.authorizedKeys;
-        extraGroups = [
-          "wheel"
-          "networkmanager"
-        ]
-        ++ checkGroups [
-          "audio"
-          "video"
-          "libvirtd"
-          "scanner"
-          "lp"
-          "kvm"
-          "wireshark"
-        ];
-      }
-      // passwordOf primary.name;
+  users.users = lib.mapAttrs mkUser people // {
+    root = {
+      openssh.authorizedKeys.keys = loginKeys (hostUsers.root or { });
+    }
+    // passwordOf "root";
+  };
 
-      # Root: own emergency password, only primary's hardware (FIDO) SSH keys
-      root = {
-        openssh.authorizedKeys.keys = builtins.filter (lib.hasPrefix "sk-") primary.authorizedKeys;
-      }
-      // passwordOf "root";
-    };
+  home-manager.users = lib.mapAttrs (name: u: {
+    imports = [ u.home ];
+    _module.args.user = { inherit name; };
+  }) withHome;
 }

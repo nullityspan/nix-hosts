@@ -6,7 +6,8 @@
   ...
 }:
 let
-  primary = import ../../users/zen.nix;
+  keys = import ../../keys.nix;
+  hosts = import ../../hosts.nix;
 in
 {
   imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
@@ -19,7 +20,9 @@ in
   };
 
   # No password baked in: set one per install on the console (`sudo passwd`).
-  users.users.root.openssh.authorizedKeys.keys = primary.authorizedKeys;
+  users.users.root.openssh.authorizedKeys.keys = map (
+    n: keys.humans.zen.${n}.ssh or hosts.${n}.ssh
+  ) hosts.workstation.users.zen.login;
 
   # Host configs use ZFS (disko runs from this kernel).
   boot.supportedFilesystems.zfs = true;

@@ -1,18 +1,41 @@
 #!/usr/bin/env bash
-# scripts/rebuild <host> [switch|boot|test|build|dry-run] [extra nixos-rebuild args]
+# scripts/rebuild <host> [switch|boot|test|build|dry-run] [--target user@host] [extra nixos-rebuild args]
+# Without --target: rebuild this machine. With --target: build here, activate there.
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-	echo "Usage: $0 <host> [action] [args...]"
+	echo "Usage: $0 <host> [action] [--target user@host] [args...]"
 	exit 1
 fi
 
 HOST=$1
-ACTION=${2:-switch}
-shift $(($# < 2 ? $# : 2))
+shift
+ACTION=switch
+if [[ $# -gt 0 && $1 != -* ]]; then
+	ACTION=$1
+	shift
+fi
+
+TARGET=
+ARGS=()
+while [[ $# -gt 0 ]]; do
+	if [[ $1 == --target ]]; then
+		[[ $# -ge 2 ]] || { echo "--target needs user@host" >&2; exit 1; }
+		TARGET=$2
+		shift 2
+	else
+		ARGS+=("$1")
+		shift
+	fi
+done
 
 # shellcheck source=scripts/lib/private.sh
 source "$(dirname "$0")/lib/private.sh"
 private_prepare "$HOST"
 
-sudo nixos-rebuild "$ACTION" --flake ".#$HOST" "${PRIVATE_ARGS[@]}" "$@"
+if [[ -n $TARGET ]]; then
+	nixos-rebuild "$ACTION" --flake ".#$HOST" "${PRIVATE_ARGS[@]}" \
+		--target-host "$TARGET" --sudo --ask-sudo-password "${ARGS[@]}"
+else
+	sudo nixos-rebuild "$ACTION" --flake ".#$HOST" "${PRIVATE_ARGS[@]}" "${ARGS[@]}"
+fi

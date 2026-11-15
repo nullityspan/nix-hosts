@@ -1,25 +1,14 @@
 {
-  inputs,
   lib,
   config,
   pkgs,
   ...
 }:
-let
-  moloch = import ../../../users/moloch.nix;
-  # Identity set per repo by git-identity; no signing.
-  user = removeAttrs moloch [ "signingKey" ] // {
-    identity = "";
-    email = "";
-    authorizedKeys = [ ];
-  };
-in
 {
   imports = [
     ./hardware.nix
     ./boot.nix
     ./networking.nix
-    ./rdp.nix
 
     ../../modules/core
     ../../modules/hardware
@@ -37,9 +26,7 @@ in
       extraLocale = "de_DE.UTF-8";
       keyboardLayout = "us";
     };
-    users.primary = "moloch";
-    users.extra = [ "worker" ];
-    users.personas = [ "work" ];
+    users.personas = [ ]; # "work" -- must be added
     partition = {
       device = config.host.private.host.disk; # /dev/disk/by-id path; 2nd NVMe disk stays unused
       persist.path = "/persist";
@@ -69,20 +56,10 @@ in
     };
   };
 
-  home-manager = {
-    users.moloch = import ../../../home/work.nix;
-    extraSpecialArgs = { inherit inputs user; };
-  };
-
   users.users = {
-    moloch = {
-      uid = 1000;
-      # Nitrokeys only; drops the research host's own key.
-      openssh.authorizedKeys.keys = lib.mkForce (
-        builtins.filter (lib.hasPrefix "sk-") moloch.authorizedKeys
-      );
-    };
-    root.openssh.authorizedKeys.keys = lib.mkForce [ ];
+    moloch.uid = 1000;
+    # Rootful docker until the rootless GPU test passes (PLAN.md step 4).
+    worker.extraGroups = lib.optional config.virtualisation.docker.enable "docker";
   };
 
   # ===============================================================

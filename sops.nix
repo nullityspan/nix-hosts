@@ -1,27 +1,18 @@
 # sops creation rules; scripts/sops-config renders this to .sops.yaml.
-# Recipients are names from keys.nix.
+# Recipients are names from keys.nix (humans) and hosts.nix (hosts).
 let
   keys = import ./keys.nix;
-  age = {
-    inherit (keys.humans.zen) recovery nk1 nk2;
-    inherit (keys.machines) workstation research satellite;
-  };
+  hosts = import ./hosts.nix;
+  age = keys.humans.zen // hosts;
   admins = [
     "recovery"
     "nk1"
     "nk2"
   ];
 
-  # Who installs and deploys each host. Installers can decrypt and re-key all
-  # of that host's files, so installs never need an admin key.
-  installers = {
-    workstation = [ ];
-    research = [ "workstation" ];
-    satellite = [
-      "workstation"
-      "research"
-    ];
-  };
+  # Installers (hosts.nix managedBy) can decrypt and re-key all of that
+  # host's files, so installs never need an admin key.
+  installers = builtins.mapAttrs (_: h: h.managedBy) hosts;
 
   hostRule = host: {
     path = ''nixos/hosts/${host}/((secrets|private)\.sops\.yaml|hardware\.json\.sops)$'';
