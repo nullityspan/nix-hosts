@@ -45,4 +45,6 @@ in
     default = host.proxy;
     noProxy = host.no_proxy;
   };
+
+  security.pki.certificates = lib.mkIf loaded [ host.ca ];
 }

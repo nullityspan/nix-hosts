@@ -44,6 +44,8 @@ in
     noProxy = host.no_proxy;
   };
 
+  security.pki.certificates = lib.mkIf loaded [ host.ca ];
+
   # No SSH keys enrolled yet — keep password logins (overrides the
   # hardened defaults in core/sops.nix).
   services.openssh.settings = {
