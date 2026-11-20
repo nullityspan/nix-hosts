@@ -11,8 +11,7 @@ refactor; only the workstation has been rebuilt, and not with the latest tree.
   `scripts/rebuild <host> build`. Plain `nixos-rebuild` fails on purpose (stub
   `private` input).
 - Do not commit, stage or stash unless the user asks.
-- After code changes run `scripts/check`, then `graphify update .`
-  (`PYTHONHASHSEED=0 graphify update .` until the workstation is rebuilt).
+- After code changes run `scripts/check`.
 - Do not write "done" for something that was not verified.
 
 ## Done, waiting for the user
@@ -31,14 +30,10 @@ Changed and checked as far as possible without sudo. `scripts/check` passes.
 - **Scripts** (`scripts/`): single lint path in `check`, new `shellcheck`
   flake check, `test` deleted (`scripts/rebuild <host> build` replaces it),
   `vmtest` cleanup fixed, `--inputs-from` in `facter` and `lib/private.sh`.
-- **graphify wrapper** (`home/modules/dev/agents.nix`): pins
-  `PYTHONHASHSEED`, so `graphify update` no longer re-executes into a Python
-  without its modules.
 
 The user still has to:
 
-- Rebuild the hosts. Until then the `templates#<name>` alias and the graphify
-  wrapper are not active, and `taplo`, `prettier`, `bash-language-server` and
+- Rebuild the hosts. Until then the `templates#<name>` alias is not active, and `taplo`, `prettier`, `bash-language-server` and
   `vscode-langservers-extracted` are missing from editors in this repo.
 - Run `scripts/rebuild <host> build` (covers the `private.sh` change) and
   `scripts/vmtest <host>` once.
@@ -53,10 +48,9 @@ Set by the user on 2026-11-15:
 
 1. Editors (`home/modules/dev/`): Helix and Zed. Code items closed
    2026-11-15; the GUI checks are left.
-2. Now: personas, hosts and identities ("Identity work" below, plus the
-   plan-first items: `worker` root-equivalence on research, personal key label on
-   work hosts, host registry with user definitions). Design first, no edits
-   before the user agrees.
+2. Now: "Identity work" below. The design is agreed (2026-11-15); steps 1
+   (registry) and 2 are done; step 3 is in the registry; the rebuilds verify steps 1 and 3.
+3. After the identity work: rebuild research and satellite.
 
 ## Open sections
 
@@ -68,33 +62,10 @@ Set by the user on 2026-11-15:
 - research and satellite: not rebuilt. They come after the identity work
   (user, 2026-11-15).
 
-### graphify in this repo
+### graphify
 
-Changed 2026-11-15. `scripts/check` passes; the package and the skill build
-from `agents.nix`; not activated on a host.
-
-- Nix parser: `home/modules/dev/graphify-nix.py`, patched into the graphify
-  package by `agents.nix`, so it applies in every project. It emits file
-  nodes, top-level bindings and `imports_from` edges for relative paths. The
-  graph here now holds all 68 `.nix` files (464 nodes, 85 import edges).
-- Until the rebuild, `graphify` on `PATH` is the unpatched build: it keeps
-  the Nix nodes but does not refresh them.
-- The skill now uses a pinned Python that imports graphify. Its own detection
-  fell through to `pip install`. The stale `.graphify_python` is deleted.
-- `.graphifyignore` excludes encrypted `*.sops.*` files, not `.sops.yaml`.
-- Graph rebuilt with a Sonnet subagent on 2026-11-15: 600 nodes, 744 edges,
-  27 named communities, semantic pass over `README.md`,
-  `docs/remote-install.md` and `.sops.yaml`. Their semantic cache is in
-  `graphify-out/cache/semantic` and matches the manifest.
-- `PLAN.md` is in `.graphifyignore` since 2026-11-15: it changes every
-  session, so its semantic nodes were always stale.
-- After editing `graphify-nix.py`, delete `graphify-out/cache`; the cache
-  does not notice an extractor change.
-- A hand-done semantic extraction must stamp its nodes and edges
-  `_origin: "semantic"`. The skill does this; unstamped ones are deleted
-  without warning by the next `graphify update .`.
-- Hooks and the `CLAUDE.md` rule stay per project (`graphify claude
-  install`); `~/.claude/settings.json` is not managed by home-manager.
+Dropped 2026-11-17: package, Nix parser patch, skill, `.graphifyignore`,
+project hooks and `graphify-out/` removed. Not built on a host.
 
 ### Agentic tooling (`home/modules/dev/agents.nix`)
 
@@ -119,10 +90,6 @@ the next rebuild.
   `pyright-lsp` and `code-simplifier` plugins.
 - `~/.claude/settings.json` stays unmanaged: a home-manager symlink would make
   `/config` and `/model` unable to save.
-- The graphify hook guard in `.claude/settings.json` no longer runs on `Bash`
-  (changed 2026-11-15); it nudged on any `grep` or `find`, also outside the
-  repo. It still runs on `Grep`, `Read` and `Glob`, where it skips non-source
-  files itself. `graphify claude install` would put `Bash` back.
 
 ### Editors (`home/modules/dev/`)
 
@@ -141,7 +108,7 @@ the next rebuild.
 - Zed 1.27.0 is installed on the workstation and its extensions (`nix`,
   `zig`, `dockerfile`, `docker-compose`, `toml`) are downloaded. Still to
   check by hand in the GUI: `nixd`, `ty`/`ruff`, `vtsls`, Docker and Zig
-  inside a devShell; `zeditor ssh://moloch@research/<path>`; Zed's
+  inside a devShell; `zeditor ssh://zen@research/<path>`; Zed's
   self-uploaded remote server on satellite.
 - `ty`, `ruff` and `vtsls` are not ambient on purpose: Python tools come from
   the project devShell, and Zed fetches `vtsls` itself with the Nix `node`.
@@ -164,24 +131,115 @@ Rework later (user, 2026-11-15).
   argument. `scripts/check` passes and the workstation Helix and Zed packages
   evaluate; not built on a host.
 
-## Identity work (from the wiped plan)
+## Identity work
 
-`TODO.md` no longer exists, so the remaining steps are listed here. Step 1
-(`hosts.nix` registry) is in the tree, not yet built on real hosts.
+Design agreed by the user on 2026-11-15. Step 2 is implemented (2026-11-20,
+uncommitted, no host rebuilt); the rest is not.
 
-1. Fresh admin credential: new resident keys (`ssh:admin`) on nk1 and nk2,
-   added next to the old ones; remove the old keys only after login is
-   confirmed on every host with both tokens.
-2. Remote update with signed closures: one signing key per managing host,
-   `trusted-public-keys` derived from `managedBy`. The current deploy path
-   still depends on `trusted-users`, which was removed.
-3. `worker` on research: rootless docker with GPU (CDI), password SSH login
-   through a `Match User worker` block.
-4. Persona software keys in sops (`git-persona/<p>`, `.signers`, `.key`);
-   then re-enable the workstation personas.
-5. Managed `~/.ssh/config` through home-manager with a sops-rendered include.
-6. README "Secrets" section.
+Problems it fixes:
 
-Settled earlier and still valid: no disk encryption; backups wait for a NAS;
-Nitrokeys are admin keys only; personas stay separate, no key or name of one is used for another; research manages satellite; no SSH CA, no
-`includeIf`.
+- Login keys are not role-named: the old nk1/nk2 SSH public keys carry a
+  personal FIDO application string and are in `authorized_keys` for `zen` and root
+  on research and satellite.
+- `worker` on research is in the rootful `docker` group, so it is root.
+- `host.users.personas` is empty on both hosts: no managed git identity.
+- `scripts/rebuild --target` copies closures as a user that is no longer
+  trusted, so remote deploy does not work.
+
+Already in the tree, do not redo: password SSH login is off globally
+(`nixos/modules/core/sops.nix`); rootless docker with CDI is on for every
+user (`nixos/modules/virtualisation/docker.nix`).
+
+### Step 1: admin keys (registry done 2026-11-20; verify left)
+
+- User enrols a resident key with application `ssh:admin` on nk1 and nk2
+  (`ssh-keygen -t ed25519-sk -O resident -O application=ssh:admin`).
+- Add them to `keys.nix` as `nk1-admin` and `nk2-admin`, next to the old keys.
+- `login` lists on research and satellite name only the new keys. The
+  workstation keeps the old keys until step 4 is finished.
+- age recipients stay; they carry no name.
+- Verify: login to every host with each token before an old key is removed.
+
+### Step 2: registry fields (done 2026-11-20)
+
+Users stay inside `hosts.nix`; no separate user file, no general feature
+flags. Three new optional fields per user, derived in
+`nixos/modules/core/users.nix`:
+
+- `personas` (list): creates `git-persona/<p>`, `.signers` and `.key` sops
+  secrets from the host's `secrets.sops.yaml`, owned by that user.
+- `passwordLogin` (bool): emits `Match User <name>` with
+  `PasswordAuthentication yes`.
+- `linger` (bool): sets `users.users.<name>.linger`, so the user's rootless
+  docker daemon runs without a session.
+
+Delete: the `host.users.personas` option (`options.nix`), the commented
+persona lists in the workstation and research configs, the hand-written
+`git-persona/work.key` secret and the `worker.extraGroups` line in
+`nixos/hosts/research/default.nix`.
+
+All `personas` lists stay empty in this step: a listed persona fails the
+build until its sops entries exist (step 4).
+
+Verify: `scripts/check`; evaluate the research config and read back
+`services.openssh.extraConfig`, `users.users.worker.linger` and
+`users.users.worker.extraGroups`. Evaluated: the `Match` block renders last
+in `sshd_config`. Not checked: behaviour on a running host.
+
+### Step 3: `worker` on research (registry done 2026-11-20; test left)
+
+- The admin user is `zen` on every host (was `moloch` on research and
+  satellite). The sops key `moloch-password` must be renamed to
+  `zen-password` in both files before a rebuild.
+- CDI is on for the rootless daemon too (`docker.nix`).
+
+- `hosts.nix`: `worker = { passwordLogin = true; linger = true; };`.
+  fail2ban stays.
+- User tests on research after a rebuild, as `worker`:
+  `docker run --rm --device nvidia.com/gpu=all ubuntu nvidia-smi`.
+- Not checked: rootless docker with CDI and the NVIDIA driver on research.
+  If it fails, `worker` stays in the `docker` group and this plan says so.
+
+### Step 4: persona keys (done 2026-11-20; work forge key not set, forge unavailable)
+
+- `scripts/persona <host> <persona> "<name>" "<email>"` writes the three
+  sops entries and prints the public key; a key that exists in another
+  host's file is reused. Run it for workstation (all three) and research
+  (`work`, reuses the existing key), then fill the `personas` lists.
+
+- One software ed25519 key per persona (names in `hosts.nix`), stored
+  in the sops file of each host that uses it: workstation all three, research
+  only `work`.
+- Each persona's gitconfig fragment forces its own key and disables the agent
+  (`IdentitiesOnly`), so a forge never sees two personas' keys in one
+  connection.
+- Fill the `personas` lists from step 2.
+- User swaps the keys on GitHub. Then remove the old personal
+  Nitrokey keys from `keys.nix` and every `login` list.
+- Name, email and other PII only in encrypted values.
+
+### Step 5: signed closures (in the tree 2026-11-20; untested end to end)
+
+- Workstation and research each get a Nix signing key: secret in their own
+  sops file, public key as `signing` in `hosts.nix`.
+- Each target sets `trusted-public-keys` from the `signing` keys of its
+  `managedBy` hosts.
+- `scripts/rebuild --target` signs the closure before the copy and passes
+  `--use-substitutes`.
+- Not checked: that `nixos-rebuild --target-host` accepts signed paths from
+  an untrusted user without further settings.
+
+### Step 6: `~/.ssh/config` (dropped 2026-11-20)
+
+The user decided the ssh client configuration is not part of this repo.
+`~/.ssh/config` stays a hand-edited file.
+
+### Step 7: README "Secrets" section (done 2026-11-20)
+
+Including the sops edit and re-key workflow.
+
+### Settled, do not reopen
+
+No disk encryption; backups wait for a NAS; Nitrokeys are admin keys only;
+personas stay separate, no key or name of one is used for another; research
+manages satellite; no SSH CA, no `includeIf`; fail2ban stays.
