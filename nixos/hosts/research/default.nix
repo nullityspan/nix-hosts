@@ -1,5 +1,4 @@
 {
-  lib,
   config,
   pkgs,
   ...
@@ -26,7 +25,6 @@
       extraLocale = "de_DE.UTF-8";
       keyboardLayout = "us";
     };
-    users.personas = [ ]; # "work" -- must be added
     partition = {
       device = config.host.private.host.disk; # /dev/disk/by-id path; 2nd NVMe disk stays unused
       persist.path = "/persist";
@@ -37,7 +35,7 @@
   };
 
   sops.secrets = {
-    moloch-password = {
+    zen-password = {
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
     };
@@ -49,18 +47,9 @@
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
     };
-    # Work persona's signing/push key: research works without the Nitrokey.
-    "git-persona/work.key" = {
-      sopsFile = ./secrets.sops.yaml;
-      owner = "moloch";
-    };
   };
 
-  users.users = {
-    moloch.uid = 1000;
-    # Rootful docker until the rootless GPU test passes (PLAN.md step 4).
-    worker.extraGroups = lib.optional config.virtualisation.docker.enable "docker";
-  };
+  users.users.zen.uid = 1000;
 
   # ===============================================================
   #       ESSENTIAL SYSTEM PACKAGES

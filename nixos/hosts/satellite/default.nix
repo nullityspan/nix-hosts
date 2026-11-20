@@ -38,7 +38,7 @@
   };
 
   sops.secrets = {
-    moloch-password = {
+    zen-password = {
       sopsFile = ./secrets.sops.yaml;
       neededForUsers = true;
     };

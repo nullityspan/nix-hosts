@@ -25,11 +25,6 @@
       extraLocale = "de_DE.UTF-8";
       keyboardLayout = "us";
     };
-    users.personas = [
-      # "nullity"
-      # "real"
-      # "work"
-    ];
     partition = {
       device = config.host.private.host.disk; # /dev/disk/by-id path
       persist.path = "/persist";

@@ -44,25 +44,38 @@ let
       isNormalUser = true;
       openssh.authorizedKeys.keys = loginKeys u;
       extraGroups = lib.optionals (u.admin or false) adminGroups;
+      # Keeps the user's rootless docker daemon running without a session.
+      linger = u.linger or false;
     }
     // passwordOf name;
+
+  # Git persona fragments for `git-identity <persona>`: a gitconfig include,
+  # its allowed_signers file and its key. PII stays out of the store.
+  personaSecrets =
+    name: u:
+    lib.genAttrs
+      (lib.concatMap (p: [
+        "git-persona/${p}"
+        "git-persona/${p}.signers"
+        "git-persona/${p}.key"
+      ]) (u.personas or [ ]))
+      (_: {
+        sopsFile = ../../hosts + "/${config.host.settings.name}/secrets.sops.yaml";
+        owner = name;
+      });
 in
 {
   # Ensure home directories exist
   systemd.tmpfiles.rules = lib.concatMap homeRules (builtins.attrNames people);
 
-  # Git persona fragments for `git-identity <persona>`: a gitconfig include
-  # and its allowed_signers file. PII stays out of the store.
-  sops.secrets =
-    lib.genAttrs
-      (lib.concatMap (p: [
-        "git-persona/${p}"
-        "git-persona/${p}.signers"
-      ]) config.host.users.personas)
-      (_: {
-        sopsFile = ../../hosts + "/${config.host.settings.name}/secrets.sops.yaml";
-        owner = config.host.users.primary;
-      });
+  sops.secrets = lib.concatMapAttrs personaSecrets people;
+
+  # Match blocks must come last in sshd_config.
+  services.openssh.extraConfig = lib.mkAfter (
+    lib.concatMapStrings (n: "Match User ${n}\n  PasswordAuthentication yes\n") (
+      builtins.attrNames (lib.filterAttrs (_: u: u.passwordLogin or false) people)
+    )
+  );
 
   # sops is the only password source; `switch` applies changes.
   users.mutableUsers = false;

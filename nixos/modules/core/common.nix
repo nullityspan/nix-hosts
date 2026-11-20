@@ -6,6 +6,8 @@
   ...
 }:
 let
+  hosts = import ../../../hosts.nix;
+  self = hosts.${config.host.settings.name};
   # Real hostname from private data, else the flake codename.
   hostName = config.host.private.host.hostname or config.host.settings.name;
   inherit (config.host.settings) stateVersion;
@@ -40,6 +42,11 @@ in
   # ===============================================================
   #       NIX CONFIGURATION
   # ===============================================================
+  # Signs closures for the hosts this one manages (scripts/rebuild --target).
+  sops.secrets = lib.mkIf (self ? signing) {
+    nix-signing-key.sopsFile = ../../hosts + "/${config.host.settings.name}/secrets.sops.yaml";
+  };
+
   nix = {
     gc = {
       automatic = true;
@@ -54,6 +61,8 @@ in
       log-lines = 25;
       min-free = 128000000;
       max-free = 1000000000;
+      # Closures signed by a managing host are accepted from any user.
+      trusted-public-keys = map (h: hosts.${h}.signing) self.managedBy;
     };
     # `nix flake init -t templates#<name>`; inputs.self keeps the remote URL off the hosts.
     registry.templates.flake = inputs.self;

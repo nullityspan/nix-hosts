@@ -48,11 +48,6 @@
           else
             throw "hosts.nix: ${host} has ${toString (builtins.length admins)} admin users; need exactly one, or set host.users.primary";
       };
-      # Git personas of the primary user; data in secrets.sops.yaml (git-persona/<name>).
-      personas = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
-      };
     };
     partition = {
       device = lib.mkOption { type = lib.types.str; };

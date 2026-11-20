@@ -1,5 +1,5 @@
 # home/work.nix — home-manager entry point for the research host.
-# moloch's modules minus free-time ones (creative, gaming).
+# zen's modules minus free-time ones (creative, gaming).
 # `user` ({ name }) is injected from hosts.nix by nixos/modules/core/users.nix.
 { user, ... }:
 {
