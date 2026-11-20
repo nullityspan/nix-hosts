@@ -49,8 +49,9 @@ Set by the user on 2026-11-15:
 1. Editors (`home/modules/dev/`): Helix and Zed. Code items closed
    2026-11-15; the GUI checks are left.
 2. Now: "Identity work" below. The design is agreed (2026-11-15); steps 1
-   (registry) and 2 are done; step 3 is in the registry; the rebuilds verify steps 1 and 3.
-3. After the identity work: rebuild research and satellite.
+   to 5 and 7 are done on the workstation and research; step 6 is dropped.
+3. Left: rebuild satellite (login check with both tokens), then the first
+   `scripts/rebuild <host> --target` deploy (step 5 is untested end to end).
 
 ## Open sections
 
@@ -59,8 +60,8 @@ Set by the user on 2026-11-15:
 - Workstation rebuilt and activated (user, 2026-11-15). The ambient tools
   from `tooling.nix` are on `PATH`; `hx --health` is green for nix, bash,
   json, yaml, toml and markdown.
-- research and satellite: not rebuilt. They come after the identity work
-  (user, 2026-11-15).
+- research: rebuilt 2026-11-20, login with both admin tokens confirmed by
+  the user. satellite: not rebuilt.
 
 ### graphify
 
@@ -150,7 +151,7 @@ Already in the tree, do not redo: password SSH login is off globally
 (`nixos/modules/core/sops.nix`); rootless docker with CDI is on for every
 user (`nixos/modules/virtualisation/docker.nix`).
 
-### Step 1: admin keys (registry done 2026-11-20; verify left)
+### Step 1: admin keys (done on workstation and research 2026-11-20; satellite left)
 
 - User enrols a resident key with application `ssh:admin` on nk1 and nk2
   (`ssh-keygen -t ed25519-sk -O resident -O application=ssh:admin`).
@@ -186,7 +187,7 @@ Verify: `scripts/check`; evaluate the research config and read back
 `users.users.worker.extraGroups`. Evaluated: the `Match` block renders last
 in `sshd_config`. Not checked: behaviour on a running host.
 
-### Step 3: `worker` on research (registry done 2026-11-20; test left)
+### Step 3: `worker` on research (done 2026-11-20)
 
 - The admin user is `zen` on every host (was `moloch` on research and
   satellite). The sops key `moloch-password` must be renamed to
@@ -198,8 +199,8 @@ in `sshd_config`. Not checked: behaviour on a running host.
 - User tests on research after a rebuild, as `worker`:
   `docker run --rm --device nvidia.com/gpu=all ubuntu nvidia-smi`.
 - Checked on the workstation (2026-11-20): rootless docker with CDI runs
-  `nvidia-smi` in a container, user not in the `docker` group. Not checked
-  on research itself.
+  `nvidia-smi` in a container, user not in the `docker` group. The user
+  confirmed the same test as `worker` on research (2026-11-20).
   If it fails, `worker` stays in the `docker` group and this plan says so.
 
 ### Step 4: persona keys (done 2026-11-20; work forge key not set, forge unavailable)
