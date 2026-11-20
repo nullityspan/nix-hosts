@@ -197,7 +197,9 @@ in `sshd_config`. Not checked: behaviour on a running host.
   fail2ban stays.
 - User tests on research after a rebuild, as `worker`:
   `docker run --rm --device nvidia.com/gpu=all ubuntu nvidia-smi`.
-- Not checked: rootless docker with CDI and the NVIDIA driver on research.
+- Checked on the workstation (2026-11-20): rootless docker with CDI runs
+  `nvidia-smi` in a container, user not in the `docker` group. Not checked
+  on research itself.
   If it fails, `worker` stays in the `docker` group and this plan says so.
 
 ### Step 4: persona keys (done 2026-11-20; work forge key not set, forge unavailable)
