@@ -48,6 +48,9 @@
     };
   };
 
+  # Same UID as the former admin user: file ownership carries over.
+  users.users.zen.uid = 1000;
+
   environment.systemPackages = with pkgs; [
     curl
     wget
