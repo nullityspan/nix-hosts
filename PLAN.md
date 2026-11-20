@@ -50,8 +50,8 @@ Set by the user on 2026-11-15:
    2026-11-15; the GUI checks are left.
 2. Now: "Identity work" below. The design is agreed (2026-11-15); steps 1
    to 5 and 7 are done on the workstation and research; step 6 is dropped.
-3. Left: rebuild satellite (login check with both tokens), then the first
-   `scripts/rebuild <host> --target` deploy (step 5 is untested end to end).
+3. Left: reboot satellite once, then the first `scripts/rebuild <host>
+   --target` deploy (step 5 is untested end to end).
 
 ## Open sections
 
@@ -61,7 +61,9 @@ Set by the user on 2026-11-15:
   from `tooling.nix` are on `PATH`; `hx --health` is green for nix, bash,
   json, yaml, toml and markdown.
 - research: rebuilt 2026-11-20, login with both admin tokens confirmed by
-  the user. satellite: not rebuilt.
+  the user. satellite: rebuilt 2026-11-20 from a checkout in the admin
+  home, admin user renamed with its home, login with both tokens confirmed
+  by the user; not rebooted since.
 
 ### graphify
 
@@ -151,7 +153,7 @@ Already in the tree, do not redo: password SSH login is off globally
 (`nixos/modules/core/sops.nix`); rootless docker with CDI is on for every
 user (`nixos/modules/virtualisation/docker.nix`).
 
-### Step 1: admin keys (done on workstation and research 2026-11-20; satellite left)
+### Step 1: admin keys (done on all hosts 2026-11-20)
 
 - User enrols a resident key with application `ssh:admin` on nk1 and nk2
   (`ssh-keygen -t ed25519-sk -O resident -O application=ssh:admin`).
