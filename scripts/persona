@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# scripts/persona <host> <persona> <git name> <email>
+# Writes a git persona into the host's secrets.sops.yaml: the gitconfig
+# fragment, its allowed_signers file and its key (git-persona/<persona>*).
+# The key is taken from any host file that already has the persona, else
+# generated. Prints the public key for the forge.
+set -euo pipefail
+
+[[ $# -eq 4 ]] || { echo "Usage: $0 <host> <persona> <git name> <email>" >&2; exit 1; }
+host=$1 p=$2 name=$3 email=$4
+cd "$(git rev-parse --show-toplevel)"
+f=nixos/hosts/$host/secrets.sops.yaml
+[[ -f $f ]] || { echo "missing $f" >&2; exit 1; }
+
+# Same key source as scripts/lib/private.sh: this machine's host key.
+if [[ -z ${SOPS_AGE_KEY_FILE:-} ]]; then
+	SOPS_AGE_KEY=$(sudo "$(command -v ssh-to-age)" -private-key -i /etc/ssh/ssh_host_ed25519_key)
+	export SOPS_AGE_KEY
+fi
+export SOPS_DECRYPTION_ORDER=age
+
+umask 077
+tmp=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/persona.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+
+for src in nixos/hosts/*/secrets.sops.yaml; do
+	if key=$(sops -d --extract "[\"git-persona\"][\"$p.key\"]" "$src" 2>/dev/null); then
+		printf '%s\n' "$key" >"$tmp/key"
+		echo "reusing key from $src" >&2
+		break
+	fi
+done
+[[ -s $tmp/key ]] || ssh-keygen -q -t ed25519 -N '' -C '' -f "$tmp/key"
+pub=$(ssh-keygen -y -f "$tmp/key")
+
+dir=/run/secrets/git-persona
+put() { sops set "$f" "[\"git-persona\"][\"$1\"]" "$(jq -Rs .)"; }
+
+put "$p.key" <"$tmp/key"
+put "$p.signers" <<<"$email namespaces=\"git\" $pub"
+# IdentityAgent=none: a forge never sees another persona's key.
+put "$p" <<EOT
+[user]
+	name = $name
+	email = $email
+	signingkey = $dir/$p.key
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	allowedSignersFile = $dir/$p.signers
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
+[core]
+	sshCommand = ssh -i $dir/$p.key -o IdentitiesOnly=yes -o IdentityAgent=none
+EOT
+
+echo "$host: persona $p written; add it to users.<name>.personas in hosts.nix" >&2
+echo "$pub"

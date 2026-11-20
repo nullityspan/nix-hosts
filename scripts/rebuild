@@ -34,8 +34,15 @@ source "$(dirname "$0")/lib/private.sh"
 private_prepare "$HOST"
 
 if [[ -n $TARGET ]]; then
+	# The login user on the target is not trusted: it only accepts paths
+	# signed by this host (hosts.nix `signing`) or by the binary cache.
+	if [[ $ACTION != dry-run ]]; then
+		out=$(nix build --no-link --print-out-paths "${PRIVATE_ARGS[@]}" \
+			".#nixosConfigurations.$HOST.config.system.build.toplevel")
+		sudo nix store sign --recursive --key-file /run/secrets/nix-signing-key "$out"
+	fi
 	nixos-rebuild "$ACTION" --flake ".#$HOST" "${PRIVATE_ARGS[@]}" \
-		--target-host "$TARGET" --sudo --ask-sudo-password "${ARGS[@]}"
+		--target-host "$TARGET" --use-substitutes --sudo --ask-sudo-password "${ARGS[@]}"
 else
 	sudo nixos-rebuild "$ACTION" --flake ".#$HOST" "${PRIVATE_ARGS[@]}" "${ARGS[@]}"
 fi
