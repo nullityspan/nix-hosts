@@ -9,6 +9,7 @@ _: {
       rootless = {
         enable = true;
         setSocketVariable = true; # users are not in the docker group
+        daemon.settings.features.cdi = true;
       };
       autoPrune = {
         enable = true;
